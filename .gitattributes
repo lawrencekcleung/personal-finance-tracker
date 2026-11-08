@@ -1,0 +1,3 @@
+# Normalise line endings; the CSV persistence contract is LF-only.
+* text=auto eol=lf
+*.csv text eol=lf
