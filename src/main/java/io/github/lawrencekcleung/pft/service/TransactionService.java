@@ -1,6 +1,7 @@
 package io.github.lawrencekcleung.pft.service;
 
 import io.github.lawrencekcleung.pft.error.DataException;
+import io.github.lawrencekcleung.pft.error.StorageException;
 import io.github.lawrencekcleung.pft.model.Category;
 import io.github.lawrencekcleung.pft.model.Money;
 import io.github.lawrencekcleung.pft.model.Transaction;
@@ -62,6 +63,16 @@ public final class TransactionService {
             throw new DataException(e.getMessage(), e);
         }
         return repository.insert(draft);
+    }
+
+    /**
+     * Removes a transaction. Its id is never reused.
+     *
+     * @param id the transaction id
+     * @throws StorageException if the id is unknown
+     */
+    public void delete(int id) {
+        repository.deleteById(id);
     }
 
     /**

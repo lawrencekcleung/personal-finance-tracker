@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 42 / 50**
+**Progress: 47 / 50**
 
 ---
 
@@ -167,15 +167,15 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase K — Hardening · PRD task 10 · 45m · cumulative 7h20
 
-- [ ] **K1** — `delete` command + service
+- [x] **K1** — `delete` command + service
       · verify: unknown id → exit 2 no write; deleted id never reused · dep: J3, E1 · 10m
-- [ ] **K2** — `list --uncategorized`
+- [x] **K2** — `list --uncategorized`
       · verify: filter test + CLI test · dep: E3 · 5m
-- [ ] **K3** — Corrupt-store behaviour (bad columns, bad amount, duplicate id, bad date) → `data/transactions.csv:7: ...`, exit 2, file untouched
+- [x] **K3** — Corrupt-store behaviour (bad columns, bad amount, duplicate id, bad date) → `data/transactions.csv:7: ...`, exit 2, file untouched
       · verify: `CsvCorruptionTest` — 4 cases; fix codec gaps found · dep: C4 · 10m
-- [ ] **K4** — CLI integration suite: drive `Cli` with args, capture stdout/stderr, assert exit codes
+- [x] **K4** — CLI integration suite: drive `Cli` with args, capture stdout/stderr, assert exit codes
       · verify: ~8 end-to-end cases green · dep: K1, K2 · 10m
-- [ ] **K5** — Golden lifecycle test replicating PRD §7.6 exactly (commands → final CSV text → summary output)
+- [x] **K5** — Golden lifecycle test replicating PRD §7.6 exactly (commands → final CSV text → summary output)
       · verify: byte-exact assertion against the PRD transcript · dep: K4 · 10m
 
 ---

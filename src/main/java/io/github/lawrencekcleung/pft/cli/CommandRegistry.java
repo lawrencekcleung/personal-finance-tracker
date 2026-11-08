@@ -3,6 +3,7 @@ package io.github.lawrencekcleung.pft.cli;
 import io.github.lawrencekcleung.pft.cli.commands.AddCommand;
 import io.github.lawrencekcleung.pft.cli.commands.AnalyzeCommand;
 import io.github.lawrencekcleung.pft.cli.commands.CategorizeCommand;
+import io.github.lawrencekcleung.pft.cli.commands.DeleteCommand;
 import io.github.lawrencekcleung.pft.cli.commands.ImportCommand;
 import io.github.lawrencekcleung.pft.cli.commands.ListCommand;
 import io.github.lawrencekcleung.pft.cli.commands.SummaryCommand;
@@ -50,7 +51,8 @@ public final class CommandRegistry {
                 ListCommand.definition(),
                 CategorizeCommand.definition(),
                 SummaryCommand.definition(),
-                AnalyzeCommand.definition()));
+                AnalyzeCommand.definition(),
+                DeleteCommand.definition()));
     }
 
     /**

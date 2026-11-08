@@ -1,6 +1,7 @@
 package io.github.lawrencekcleung.pft.service;
 
 import io.github.lawrencekcleung.pft.error.DataException;
+import io.github.lawrencekcleung.pft.error.StorageException;
 import io.github.lawrencekcleung.pft.model.Category;
 import io.github.lawrencekcleung.pft.model.Money;
 import io.github.lawrencekcleung.pft.model.Transaction;
@@ -103,6 +104,26 @@ class TransactionServiceTest {
                 () -> service.add(NOV_1, "transfer", Money.ofCents(1), "   ", null));
 
         assertEquals("unknown transaction type: transfer", e.getMessage());
+    }
+
+    // ----------------------------------------------------------------- delete
+
+    @Test
+    void deleteRemovesTheTransaction() {
+        Transaction stored = addExpense("One");
+        service.add(NOV_1, "expense", Money.ofCents(1), "Two", null);
+
+        service.delete(stored.id());
+
+        assertTrue(repository.findById(stored.id()).isEmpty());
+        assertEquals(1, repository.findAll().size());
+    }
+
+    @Test
+    void deleteWithAnUnknownIdIsAStorageException() {
+        StorageException e = assertThrows(StorageException.class, () -> service.delete(99));
+
+        assertEquals("unknown transaction id: 99", e.getMessage());
     }
 
     // ------------------------------------------------------------------- list

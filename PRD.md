@@ -209,7 +209,8 @@ Categorized #4 as client-entertainment.
 pft delete --id 3
 ```
 
-Removes the row, rewrites the file, does not renumber. Unknown id → exit `2`, no write.
+Removes the row, rewrites the file, does not renumber. Prints `Deleted #3.`. Unknown id → exit
+`2`, no write. The deleted id is never reused.
 
 ### 5.6 `summary`
 
