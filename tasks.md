@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 0 / 50**
+**Progress: 2 / 50**
 
 ---
 
@@ -23,9 +23,9 @@ Split candidates if one overruns: **C4** (read/write paths), **D3** (tokenizer v
 
 ## Phase A — Scaffold · PRD task 0 · 20m · cumulative 0h20
 
-- [ ] **A1** — Repo cloned from GitHub (public, empty); origin repointed to the `github.com-lawrencekcleung` SSH alias; `.gitignore`, `.gitattributes`, README stub; `PRD.md` and `tasks.md` moved in
+- [x] **A1** — Repo cloned from GitHub (public, empty); origin repointed to the `github.com-lawrencekcleung` SSH alias; `.gitignore`, `.gitattributes`, README stub; `PRD.md` and `tasks.md` moved in
       · verify: one commit, 5 tracked text files, no binaries, author `Lawrence Leung <lawrencekcleung@gmail.com>` · dep: — · 10m
-- [ ] **A2** — `settings.gradle.kts`, `build.gradle.kts` (java + application, toolchain 21, JUnit 5 config), `Main` usage stub, jar main-class manifest
+- [x] **A2** — `settings.gradle.kts`, `build.gradle.kts` (java + application, toolchain 21, JUnit 5 config), `Main` usage stub, jar main-class manifest
       · verify: `gradle build`, `gradle installDist`, `build/install/pft/bin/pft` runs · dep: A1 · 10m
 
 _JUnit is configured here with zero tests; the first real test is B1. A zero-test `gradle test` still passes, so the commit is green._
