@@ -581,11 +581,11 @@ public sealed interface Rule permits CategorizationRule, AnalysisRule {
     String description();
 }
 
-public interface CategorizationRule extends Rule {
+public non-sealed interface CategorizationRule extends Rule {
     Optional<String> classify(Transaction tx);
 }
 
-public interface AnalysisRule extends Rule {
+public non-sealed interface AnalysisRule extends Rule {
     List<Finding> evaluate(AnalysisContext ctx);
 }
 
@@ -594,6 +594,10 @@ public record AnalysisContext(List<Transaction> transactions, YearMonth period) 
 }
 
 public record Finding(String ruleId, List<Integer> transactionIds, String message) {}
+
+public final class FindingPrinter {
+    public String format(Finding finding);   // "[duplicate-charge] #8, #9  message"
+}
 ```
 
 ```java

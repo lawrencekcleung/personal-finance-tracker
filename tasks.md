@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 27 / 50**
+**Progress: 31 / 50**
 
 ---
 
@@ -115,13 +115,13 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase G — Rule framework · PRD task 6 · 25m · cumulative 4h55
 
-- [ ] **G1** — `Rule` (sealed), `CategorizationRule`, `AnalysisRule`, `Finding`, `AnalysisContext` (+ `expenses()`)
+- [x] **G1** — `Rule` (sealed), `CategorizationRule`, `AnalysisRule`, `Finding`, `AnalysisContext` (+ `expenses()`)
       · verify: `AnalysisContextTest` — filtering, period · dep: B4 · 5m
-- [ ] **G2** — `RuleRegistry`: `defaults()`, `of(...)`, ordered lists, `analysisRule(id)` lookup
+- [x] **G2** — `RuleRegistry`: `defaults()`, `of(...)`, ordered lists, `analysisRule(id)` lookup
       · verify: `RuleRegistryTest` — unique non-blank ids, duplicate rejected, lookup miss · dep: G1 · 10m
-- [ ] **G3** — `AnalysisRuleContractTest` abstract + stub-rule subclass
+- [x] **G3** — `AnalysisRuleContractTest` abstract + stub-rule subclass
       · verify: base assertions green against the stub · dep: G2 · 5m
-- [ ] **G4** — `FindingPrinter` (single canonical finding format)
+- [x] **G4** — `FindingPrinter` (single canonical finding format)
       · verify: `FindingPrinterTest` — golden line for a 2-id finding · dep: G1 · 5m
 
 ---
