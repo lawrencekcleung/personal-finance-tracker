@@ -413,11 +413,13 @@ public final class RepositoryFactory {
 Wiring, one line, nothing above it knows the format:
 
 ```java
-TransactionRepository repo = RepositoryFactory.open(dataPath);
-try (repo) {
-    new CommandRegistry(repo, RuleRegistry.defaults(), Clock.systemDefaultZone()).dispatch(args);
-}
+CommandRegistry registry = new CommandRegistry(List.of(/* one definition per command */));
+int exitCode = Cli.defaults(registry).run(args);
 ```
+
+`Cli` resolves the data path (`--data` → `PFT_DATA` → default), opens the adapter through
+`RepositoryFactory`, and closes it after the handler returns, so services still never see a
+`Path`.
 
 Swapping stores is then **configuration, not code**: `pft --data data/pft.db summary` starts working the day the adapter lands.
 
@@ -514,6 +516,9 @@ public final class ParsedArgs {
     public Money requireAmount(String name);
     public LocalDate requireDate(String name);
     public YearMonth optionalMonth(String name);
+    public int requireInt(String name);
+    public OptionalInt optionalInt(String name);
+    public Optional<Path> optionalPath(String name);   // for the global --data
     public boolean flag(String name);
 }
 ```
@@ -699,7 +704,7 @@ unknownUpdateAndDeleteAreStorageExceptions
 
 ### 12.3 Integration tests
 
-- Drive `CommandRegistry` in-process with args against a temp data file; assert stdout and exit code (not `System.exit`).
+- Drive `Cli` in-process with args against a temp data file; assert stdout and exit code (not `System.exit`).
 - `InMemoryTransactionRepository` (test fixture, ~30 lines) exercises the CLI without touching disk — a third implementation, which is what makes the abstraction credible.
 - Golden-file test for the §7.6 sequence: run the commands, assert the final CSV text and the summary output.
 - Factory test: `.csv` → CSV adapter; `.db` → `UsageException` today (changes by one line when SQLite lands).

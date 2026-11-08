@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 14 / 50**
+**Progress: 21 / 50**
 
 ---
 
@@ -70,19 +70,19 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase D — CLI framework · PRD task 3 · 65m · cumulative 3h15
 
-- [ ] **D1** — `OptionType` enum + converters (`STRING`, `FLAG`, `DATE`, `AMOUNT`→`Money`, `YEAR_MONTH`, `INT`, `PATH`)
+- [x] **D1** — `OptionType` enum + converters (`STRING`, `FLAG`, `DATE`, `AMOUNT`→`Money`, `YEAR_MONTH`, `INT`, `PATH`)
       · verify: `OptionTypeTest` — each converter + failure message · dep: B2 · 10m
-- [ ] **D2** — `OptionSpec` record + invariant checks (required/default conflict, FLAG takes no value)
+- [x] **D2** — `OptionSpec` record + invariant checks (required/default conflict, FLAG takes no value)
       · verify: `OptionSpecTest` — 3 cases · dep: D1 · 5m
-- [ ] **D3** — `ArgumentParser`: `--k=v`, `--k v`, unknown option, missing required, eager conversion
+- [x] **D3** — `ArgumentParser`: `--k=v`, `--k v`, unknown option, missing required, eager conversion
       · verify: `ArgumentParserTest` — 8 cases incl. `--date: expected yyyy-MM-dd` · dep: D1, D2 · 15m
-- [ ] **D4** — `ParsedArgs` typed accessors (`requireString`, `optionalString`, `requireAmount`, `requireDate`, `optionalMonth`, `flag`)
+- [x] **D4** — `ParsedArgs` typed accessors (`requireString`, `optionalString`, `requireAmount`, `requireDate`, `optionalMonth`, `flag`)
       · verify: `ParsedArgsTest` — present/absent/wrong type · dep: D3 · 10m
-- [ ] **D5** — `CommandDefinition` + `CommandRegistry` (map, duplicate-name rejection)
+- [x] **D5** — `CommandDefinition` + `CommandRegistry` (map, duplicate-name rejection)
       · verify: `CommandRegistryTest` — dispatch lookup, duplicate throws · dep: D4 · 5m
-- [ ] **D6** — `HelpPrinter`: root help + per-command help generated from specs
+- [x] **D6** — `HelpPrinter`: root help + per-command help generated from specs
       · verify: `HelpPrinterTest` — golden strings, every option appears · dep: D5 · 10m
-- [ ] **D7** — `AppContext`, `Cli` facade returning `int`, `Main` (single `System.exit`), exception → exit-code mapping
+- [x] **D7** — `AppContext`, `Cli` facade returning `int`, `Main` (single `System.exit`), exception → exit-code mapping
       · verify: `CliTest` — `--help` → 0, unknown command → 1, `DataException` → 2 · dep: D5, D6, C8 · 10m
 
 > **Milestone 1 — after D7:** framework in place, tool launchable and self-documenting, no commands yet. Internal only.

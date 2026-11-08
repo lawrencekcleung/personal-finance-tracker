@@ -1,10 +1,16 @@
 package io.github.lawrencekcleung.pft;
 
+import io.github.lawrencekcleung.pft.cli.Cli;
+import io.github.lawrencekcleung.pft.cli.CommandRegistry;
+
+import java.util.List;
+
 /**
  * Entry point for the personal finance tracker.
  *
- * <p>At this stage the application only prints its usage stub. The command framework and
- * transaction handling arrive in later tasks; see {@code tasks.md} for the order.</p>
+ * <p>All behaviour lives behind {@link Cli}; this class only builds the production registry and
+ * calls {@link System#exit} once with the returned code, so tests never exit the JVM. Commands are
+ * registered here as their phases land.</p>
  */
 public final class Main {
 
@@ -14,32 +20,7 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        System.out.println(usage());
-    }
-
-    /**
-     * Usage text for the scaffold. Replaced by the help generated from command
-     * specifications in task D6.
-     */
-    static String usage() {
-        return """
-                %s - personal finance tracker
-
-                Usage:
-                  %s <command> [options]
-
-                Commands (implemented in later tasks):
-                  add         record a single income or expense
-                  import      bulk import transactions from a CSV file
-                  list        list transactions, optionally filtered
-                  categorize  assign categories, manually or by keyword rules
-                  summary     totals and spend by category
-                  analyze     run rule-based analysis
-                  delete      remove a transaction
-
-                Options:
-                  --data <path>   data file (default: ./data/transactions.csv)
-                  --help          show this help
-                """.formatted(NAME, NAME);
+        CommandRegistry registry = new CommandRegistry(List.of());
+        System.exit(Cli.defaults(registry).run(args));
     }
 }
