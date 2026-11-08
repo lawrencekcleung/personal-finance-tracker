@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 47 / 50**
+**Progress: 50 / 50**
 
 ---
 
@@ -182,11 +182,11 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase L — Docs and release · PRD task 11 · 35m · cumulative 7h55
 
-- [ ] **L1** — README: what it is, assumptions (PRD §4), build/run (Gradle 8.5+, no-wrapper rationale)
+- [x] **L1** — README: what it is, assumptions (PRD §4), build/run (Gradle 8.5+, no-wrapper rationale)
       · verify: reviewer can build from README alone · dep: A2 · 10m
-- [ ] **L2** — README tour: run the PRD §7.6 transcript for real, paste actual output
+- [x] **L2** — README tour: run the PRD §7.6 transcript for real, paste actual output
       · verify: transcript matches K5 golden test · dep: K5 · 10m
-- [ ] **L3** — README design notes + 4 extension recipes + SQLite porting map + limitations; final `gradle clean build` review
+- [x] **L3** — README design notes + 4 extension recipes + SQLite porting map + limitations; final `gradle clean build` review
       · verify: PRD §18 checklist satisfied · dep: L2 · 15m
 
 ---
