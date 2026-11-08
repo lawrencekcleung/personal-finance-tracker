@@ -34,7 +34,7 @@ public final class RuleRegistry {
      * @return the shipped rules
      */
     public static RuleRegistry defaults() {
-        return of(List.of(), List.of());
+        return of(List.of(new KeywordCategorizationRule()), List.of());
     }
 
     /**

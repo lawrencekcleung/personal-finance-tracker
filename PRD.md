@@ -185,6 +185,23 @@ pft categorize --id 7 --category client-entertainment   # manual override
 - `--apply` with nothing to do prints `No uncategorized transactions.` and performs **no write** (idempotent, not a no-op rewrite).
 - Manual assignment is final: later `--apply` runs skip it.
 - Unknown id → exit `2`, no write.
+- `--id` implies a write even without `--apply`; combining it with `--apply` assigns the override
+  first, then categorizes the remaining rows.
+
+```
+$ pft categorize
+#2  UNCATEGORIZED -> transport  "Uber to airport"
+#3  UNCATEGORIZED -> subscriptions  "Spotify"
+Dry run: 2 transactions would be categorized. Use --apply to write.
+
+$ pft categorize --apply
+#2  UNCATEGORIZED -> transport  "Uber to airport"
+#3  UNCATEGORIZED -> subscriptions  "Spotify"
+Categorized 2 transactions.
+
+$ pft categorize --id 4 --category client-entertainment
+Categorized #4 as client-entertainment.
+```
 
 ### 5.5 `delete`
 

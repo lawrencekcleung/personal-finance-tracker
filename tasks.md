@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 31 / 50**
+**Progress: 35 / 50**
 
 ---
 
@@ -128,13 +128,13 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase H — Categorization · PRD task 7 · 35m · cumulative 5h30
 
-- [ ] **H1** — `KeywordCategorizationRule` + ordered keyword map (PRD §9.2 table)
+- [x] **H1** — `KeywordCategorizationRule` + ordered keyword map (PRD §9.2 table)
       · verify: `KeywordCategorizationRuleTest` — first match wins, case-insensitive, no match → empty · dep: G1 · 10m
-- [ ] **H2** — `CategorizationService.plan()` → immutable list of `(tx, from, to)` changes
+- [x] **H2** — `CategorizationService.plan()` → immutable list of `(tx, from, to)` changes
       · verify: `CategorizationServiceTest` — only `UNCATEGORIZED`, manual values untouched · dep: H1, C7 · 10m
-- [ ] **H3** — `categorize` command: dry-run + `--apply`; no write when plan empty
+- [x] **H3** — `categorize` command: dry-run + `--apply`; no write when plan empty
       · verify: write counter unchanged in dry-run and empty apply; file byte-identical · dep: H2 · 10m
-- [ ] **H4** — `categorize --id N --category X` (alone and with `--apply`)
+- [x] **H4** — `categorize --id N --category X` (alone and with `--apply`)
       · verify: unknown id → exit 2 no write; override survives later `--apply` · dep: H3 · 5m
 
 ---
