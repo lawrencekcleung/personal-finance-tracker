@@ -332,12 +332,14 @@ id,date,type,amount,category,description
 - `description` is RFC 4180 quoted when it contains `,`, `"`, or a newline; embedded quotes doubled.
 - Row order = id order (append order). `findAll()` makes no ordering promise; display sorts explicitly.
 - No comments, no blank lines, no BOM.
+- Next id lives in a sidecar `transactions.csv.seq` (plain text, one integer) and is written **before** the data file, so a crash can only skip an id, never reuse one. If the sidecar is missing, `max(id)+1` from the data file is the fallback; the sidecar is then recreated on the next write.
 
 ### 7.2 Write model
 
 Every mutation: read whole file → mutate in memory → write `transactions.csv.tmp` → `Files.move(..., ATOMIC_MOVE, REPLACE_EXISTING)`.
 
 - A crash mid-write leaves the previous file intact; no partial state is ever observable.
+- `insert` writes `transactions.csv.seq` (next id) before the data file; a failure between the two leaks an id rather than reusing it, and the data file is untouched.
 - `insertAll` writes once, not once per row.
 - Read-only commands (`list`, `summary`, `analyze`, `categorize` without `--apply`) never create the file or the `data/` directory.
 
@@ -389,7 +391,7 @@ Deliberate properties:
 | Property | Why |
 |---|---|
 | `findAll` order unspecified | CSV returns file order, SQLite would return rowid order; pinning order bakes one adapter's constraint into the contract |
-| Ids assigned by the store | CSV uses `max(id)+1`, SQLite would use `AUTOINCREMENT`; callers never compute ids |
+| Ids assigned by the store | CSV uses a sidecar high-water mark, SQLite would use `AUTOINCREMENT`; callers never compute ids |
 | `insertAll` default + override | Correct by default, efficient when overridden |
 | No `flush`/`commit`/`Path filePath()` | Those leak CSV mechanics into the abstraction |
 | `AutoCloseable` | Free today, means a JDBC adapter needs no interface change |
@@ -426,13 +428,13 @@ Swapping stores is then **configuration, not code**: `pft --data data/pft.db sum
 | Location | `--data data/transactions.csv` | `--data data/pft.db` |
 | Amount | 2dp text `42.50` | `INTEGER` cents `4250` |
 | Date | ISO `2026-11-01` | `TEXT` ISO (keeps dumps readable) |
-| Id | `max(id)+1` | `INTEGER PRIMARY KEY AUTOINCREMENT` |
+| Id | sidecar high-water mark (`transactions.csv.seq`) | `INTEGER PRIMARY KEY AUTOINCREMENT` |
 | Atomicity | temp file + `ATOMIC_MOVE` | `BEGIN` / `COMMIT` |
 | `findAll` order | file order | rowid order |
 | Escaping | RFC 4180 quoting | prepared statements |
 | Aggregation | full scan + streams | optional `GROUP BY` (not required) |
 
-Subtlety to document: `max(id)+1` and SQLite `AUTOINCREMENT` both guarantee "never reused", whereas plain SQLite `rowid` may reuse the highest deleted id. The contract test in §12.2 catches it.
+Subtlety to document: a persisted high-water mark and SQLite `AUTOINCREMENT` both guarantee "never reused", whereas plain `max(id)+1` (when the highest row is deleted) and plain SQLite `rowid` may reuse the highest deleted id. The contract test in §12.2 catches it.
 
 ### 7.6 Lifecycle walkthrough (used in the README and as a test scenario)
 
@@ -445,7 +447,7 @@ $ pft categorize                     # dry run, file byte-identical
 $ pft categorize --apply             # 6 rows categorized
 $ pft categorize --id 7 --category client-entertainment
 $ pft delete --id 3                  # row gone, ids not renumbered
-$ pft add ... "Coffee" 9.90          # -> #8 (max+1, not count+1)
+$ pft add ... "Coffee" 9.90          # -> #8 (high-water mark, not count+1)
 $ pft add ... "Coffee" 9.90          # -> #9
 $ pft analyze                        # flags #8/#9 as duplicate-charge
 $ pft summary --month 2026-11

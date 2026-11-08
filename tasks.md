@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 6 / 50**
+**Progress: 10 / 50**
 
 ---
 
@@ -47,14 +47,14 @@ _JUnit is configured here with zero tests; the first real test is B1. A zero-tes
 
 ## Phase C — Persistence seam + CSV · PRD task 2 · 70m · cumulative 2h10
 
-- [ ] **C1** — `TransactionRepository` interface (`findAll`, `findById`, `insert`, `update`, `deleteById`, default `insertAll`, default `close`)
+- [x] **C1** — `TransactionRepository` interface (`findAll`, `findById`, `insert`, `update`, `deleteById`, default `insertAll`, default `close`)
       · verify: compiles, no implementation yet · dep: B4 · 5m
-- [ ] **C2** — `CsvCodec`: header, row parse/serialize, RFC 4180 quoting/escaping, line-numbered errors
+- [x] **C2** — `CsvCodec`: header, row parse/serialize, RFC 4180 quoting/escaping, line-numbered errors
       · verify: `CsvCodecTest` — comma, quote, newline, Unicode, header detection, `:7:` corrupt-line message · dep: C1 · 15m
-- [ ] **C3** — `CsvTransactionRepository` read path (`findAll`, `findById`), missing file → empty
+- [x] **C3** — `CsvTransactionRepository` read path (`findAll`, `findById`), missing file → empty
       · verify: `CsvReadTest` — absent file/dir, empty file, 2 rows · dep: C2 · 10m
-- [ ] **C4** — Write path: `insert` (id = max+1), `update`, `deleteById`, temp file + `ATOMIC_MOVE`
-      · verify: `CsvWriteTest` — id assignment after delete, unknown-id delete, file contents after each op · dep: C3 · 15m
+- [x] **C4** — Write path: `insert` (id from the sidecar high-water mark), `update`, `deleteById`, temp file + `ATOMIC_MOVE`
+      · verify: `CsvWriteTest` — id assignment after delete, unknown-id delete, file contents after each op, sidecar recovery · dep: C3 · 15m
 - [ ] **C5** — `insertAll` override: one write, all-or-nothing
       · verify: `CsvInsertAllTest` — one bad row → nothing persisted · dep: C4 · 5m
 - [ ] **C6** — `TransactionRepositoryContractTest` abstract + `CsvTransactionRepositoryContractTest`
