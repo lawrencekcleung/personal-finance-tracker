@@ -1,6 +1,7 @@
 package io.github.lawrencekcleung.pft.cli;
 
 import io.github.lawrencekcleung.pft.cli.commands.AddCommand;
+import io.github.lawrencekcleung.pft.cli.commands.ImportCommand;
 import io.github.lawrencekcleung.pft.cli.commands.ListCommand;
 
 import java.util.Collection;
@@ -40,7 +41,10 @@ public final class CommandRegistry {
      * @return the production command table
      */
     public static CommandRegistry defaults() {
-        return new CommandRegistry(List.of(AddCommand.definition(), ListCommand.definition()));
+        return new CommandRegistry(List.of(
+                AddCommand.definition(),
+                ImportCommand.definition(),
+                ListCommand.definition()));
     }
 
     /**

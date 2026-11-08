@@ -138,12 +138,22 @@ pft add --date 2026-11-01 --type expense --amount 42.50 \
 pft import --file nov.csv
 ```
 
-Source schema: `date,type,amount,description[,category]`. Header optional (detected by attempting to parse the first field as a date). Any `id` column is ignored; ids are reassigned.
+Source schema: `date,type,amount,description[,category]`. The header is optional: it is
+recognised when the first field of the first non-blank line is `date` (case-insensitive), and a
+first field that parses as a date means the line is data. A leading `id` column is ignored; ids
+are always reassigned.
 
 - Per-line validation; bad rows are skipped and reported with **source line numbers**.
 - Valid rows are committed in one write.
 - Exit `0` if all rows imported, `2` if some were skipped.
 - A skipped row consumes no id, so ids stay gapless.
+
+```console
+$ pft import --file nov.csv
+Imported 4 transactions.
+nov.csv:6: invalid amount 'abc': expected a non-negative number with at most 2 decimal places
+Skipped 1 row.
+```
 
 ### 5.3 `list`
 

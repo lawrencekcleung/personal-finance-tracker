@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 24 / 50**
+**Progress: 27 / 50**
 
 ---
 
@@ -104,11 +104,11 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase F — Import · PRD task 5 · 35m · cumulative 4h30
 
-- [ ] **F1** — `ImportParser`: header detection (first field parses as date), row → draft, per-line errors, ids ignored
+- [x] **F1** — `ImportParser`: header detection (first field parses as date), row → draft, per-line errors, ids ignored
       · verify: `ImportParserTest` — with/without header, 5 malformed cases · dep: C2 · 15m
-- [ ] **F2** — `ImportService`: partial success, `ImportReport` (imported count, skipped rows), single `insertAll`
+- [x] **F2** — `ImportService`: partial success, `ImportReport` (imported count, skipped rows), single `insertAll`
       · verify: `ImportServiceTest` on in-memory repo — no id gap after skipped row · dep: F1, E1 · 10m
-- [ ] **F3** — `ImportCommand` + report printing
+- [x] **F3** — `ImportCommand` + report printing
       · verify: `CliTest` — 4 valid + 1 bad → exit 2, file has 4 rows, ids 4–7 · dep: F2 · 10m
 
 ---

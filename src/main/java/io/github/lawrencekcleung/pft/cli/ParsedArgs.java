@@ -122,6 +122,17 @@ public final class ParsedArgs {
     }
 
     /**
+     * Returns a required path option.
+     *
+     * @param name the option name
+     * @return the value
+     * @throws IllegalStateException if the option is absent or is not a {@code PATH}
+     */
+    public Path requirePath(String name) {
+        return (Path) required(name, OptionType.PATH);
+    }
+
+    /**
      * Returns whether a flag was supplied.
      *
      * @param name the option name

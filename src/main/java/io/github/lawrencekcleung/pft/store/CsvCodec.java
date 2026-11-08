@@ -98,7 +98,12 @@ public final class CsvCodec {
     }
 
     private Transaction parseRecord(Record record) {
-        List<String> fields = splitFields(record);
+        List<String> fields;
+        try {
+            fields = splitFields(record.text());
+        } catch (IllegalArgumentException e) {
+            throw malformed(record.lineNumber(), e.getMessage());
+        }
         if (fields.size() != 6) {
             throw malformed(record.lineNumber(), "expected 6 columns, got " + fields.size());
         }
@@ -155,11 +160,17 @@ public final class CsvCodec {
     }
 
     /**
-     * Splits a single record into fields, honouring RFC 4180 quoting. A quoted field may contain
-     * commas, doubled quotes and newlines.
+     * Splits one already-delimited record into fields, honouring RFC 4180 quoting. A quoted field
+     * may contain commas, doubled quotes and newlines.
+     *
+     * <p>The text must not include the record separator. A caller that knows the source location
+     * attaches it to the failure; the store does this to produce {@code path:7: ...}.</p>
+     *
+     * @param text the record text
+     * @return the field values in order
+     * @throws IllegalArgumentException if a quoted field is not terminated
      */
-    private static List<String> splitFields(Record record) {
-        String text = record.text();
+    public static List<String> splitFields(String text) {
         List<String> fields = new ArrayList<>();
         StringBuilder current = new StringBuilder();
         boolean inQuotes = false;
@@ -186,7 +197,7 @@ public final class CsvCodec {
             }
         }
         if (inQuotes) {
-            throw malformed(record.lineNumber(), "unterminated quoted field");
+            throw new IllegalArgumentException("unterminated quoted field");
         }
         fields.add(current.toString());
         return fields;
