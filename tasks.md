@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 35 / 50**
+**Progress: 39 / 50**
 
 ---
 
@@ -141,13 +141,13 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase I — Summary · PRD task 8 · 40m · cumulative 6h10
 
-- [ ] **I1** — `SummaryService` totals: income, expenses, signed net, `--month` filter
+- [x] **I1** — `SummaryService` totals: income, expenses, signed net, `--month` filter
       · verify: `SummaryServiceTest` — fixture totals, empty month, negative net · dep: G2, C7 · 10m
-- [ ] **I2** — Category breakdown (expenses only), basis-point percentages, spend-desc ordering with name tiebreak
+- [x] **I2** — Category breakdown (expenses only), basis-point percentages, spend-desc ordering with name tiebreak
       · verify: `SummaryBreakdownTest` — ordering, tiebreak, zero-expense no-divide · dep: I1 · 10m
-- [ ] **I3** — `SummaryFormatter`: aligned columns, `+`/`-` net, 1dp share, empty state
+- [x] **I3** — `SummaryFormatter`: aligned columns, `+`/`-` net, 1dp share, empty state
       · verify: `SummaryFormatterTest` — golden block matching PRD §5.6 · dep: I2 · 10m
-- [ ] **I4** — `summary` command with `--month`
+- [x] **I4** — `summary` command with `--month`
       · verify: `CliTest` — integration against temp CSV, all-time default · dep: I3, E2 · 10m
 
 ---

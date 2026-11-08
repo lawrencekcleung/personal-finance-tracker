@@ -228,7 +228,9 @@ transport                    15.80      8.6%
 subscriptions                12.00      6.5%
 ```
 
-- Default range = all time; `--month` filters.
+- Default range = all time, shown as `Period: all time`; `--month` filters.
+- A period with no transactions prints exactly `No transactions.`.
+- An income-only period prints the totals line without a category table.
 - Net is signed (`+`/`-`); income and expenses are shown as magnitudes.
 - Category rows sorted by spend descending, tie-broken by category name.
 - Percentages are computed with integer basis points and displayed to 1dp; they may not total exactly 100.0% due to display rounding (noted in README).

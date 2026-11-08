@@ -49,7 +49,7 @@ class CommandRegistryTest {
 
     @Test
     void defaultsRegistersTheShippedCommandsInOrder() {
-        assertEquals(List.of("add", "import", "list", "categorize"),
+        assertEquals(List.of("add", "import", "list", "categorize", "summary"),
                 CommandRegistry.defaults().all().stream()
                         .map(CommandDefinition::name).toList());
     }
