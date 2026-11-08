@@ -8,8 +8,10 @@ bin/
 data/
 *.db
 
-# No Gradle wrapper jar is committed -- see README
-gradle/wrapper/
+# No Gradle wrapper is committed -- see README
+gradle/
+gradlew
+gradlew.bat
 
 # IDE / OS
 .idea/

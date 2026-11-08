@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 2 / 50**
+**Progress: 6 / 50**
 
 ---
 
@@ -34,13 +34,13 @@ _JUnit is configured here with zero tests; the first real test is B1. A zero-tes
 
 ## Phase B — Domain · PRD task 1 · 40m · cumulative 1h00
 
-- [ ] **B1** — `Money` record: `ZERO`, `ofCents`, `plus`, `minus`, `negate`, `isZero`, `isNegative`, `compareTo`, `format`, `formatSigned`
+- [x] **B1** — `Money` record: `ZERO`, `ofCents`, `plus`, `minus`, `negate`, `isZero`, `isNegative`, `compareTo`, `format`, `formatSigned`
       · verify: `MoneyTest` — formatting incl. `-1234.56`, arithmetic, negative net · dep: A2 · 10m
-- [ ] **B2** — `Money.parse`: regex gate, 2dp, overflow via `*Exact`
+- [x] **B2** — `Money.parse`: regex gate, 2dp, overflow via `*Exact`
       · verify: `MoneyParseTest` — all 10 rows of PRD §6.1 table · dep: B1 · 10m
-- [ ] **B3** — Exceptions: `UsageException`, `DataException`, `StorageException`
+- [x] **B3** — Exceptions: `UsageException`, `DataException`, `StorageException`
       · verify: compiles, thrown nowhere yet · dep: B1 · 5m
-- [ ] **B4** — `TransactionType` (+ wire name), `Category.UNCATEGORIZED`, `Transaction` record with compact-constructor validation
+- [x] **B4** — `TransactionType` (+ wire name), `Category.UNCATEGORIZED`, `Transaction` record with compact-constructor validation
       · verify: `TransactionTest` — blank description, negative amount, category defaulting · dep: B2, B3 · 15m
 
 ---
