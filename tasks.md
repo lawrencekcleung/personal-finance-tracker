@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 39 / 50**
+**Progress: 42 / 50**
 
 ---
 
@@ -154,11 +154,11 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase J — Analysis rule · PRD task 9 · 25m · cumulative 6h35
 
-- [ ] **J1** — `DuplicateChargeRule` core: description normalization, cents equality, ±3-day window, expenses only
+- [x] **J1** — `DuplicateChargeRule` core: description normalization, cents equality, ±3-day window, expenses only
       · verify: `DuplicateChargeRuleTest` — day 3 vs 4, same-day, differing amount, income excluded · dep: G3 · 10m
-- [ ] **J2** — Multiple pairs per transaction + deterministic ordering
+- [x] **J2** — Multiple pairs per transaction + deterministic ordering
       · verify: `DuplicateChargeRuleTest` — 3-transaction cluster, stable output across runs · dep: J1 · 5m
-- [ ] **J3** — `analyze` command with `--rule` filter, wired to `FindingPrinter`
+- [x] **J3** — `analyze` command with `--rule` filter, wired to `FindingPrinter`
       · verify: `CliTest` — no findings → exit 0 `No findings.`; unknown `--rule` → exit 1 · dep: J2, G4, D7 · 10m
 
 > **Milestone 3 — after J3:** feature complete. Every command in PRD §5 works. K/L make it reviewable.
