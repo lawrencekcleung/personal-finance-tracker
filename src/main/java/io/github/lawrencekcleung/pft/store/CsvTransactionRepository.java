@@ -79,6 +79,27 @@ public final class CsvTransactionRepository implements TransactionRepository {
     }
 
     @Override
+    public List<Transaction> insertAll(List<Transaction> drafts) {
+        Objects.requireNonNull(drafts, "drafts is required");
+        if (drafts.isEmpty()) {
+            return List.of();
+        }
+        List<Transaction> current = new ArrayList<>(readAll());
+        int id = nextId(current);
+        List<Transaction> stored = new ArrayList<>(drafts.size());
+        // Ids are claimed in memory first: a null draft fails here, before either file is touched.
+        for (Transaction draft : drafts) {
+            Objects.requireNonNull(draft, "draft is required");
+            stored.add(new Transaction(id++, draft.date(), draft.type(),
+                    draft.amount(), draft.category(), draft.description()));
+        }
+        current.addAll(stored);
+        writeCounter(id);
+        writeAll(current);
+        return List.copyOf(stored);
+    }
+
+    @Override
     public void update(Transaction tx) {
         List<Transaction> current = new ArrayList<>(readAll());
         for (int i = 0; i < current.size(); i++) {

@@ -687,13 +687,15 @@ insertAssignsStrictlyIncreasingIds
 findByIdMissReturnsEmpty
 updateReplacesStoredValues
 deleteRemovesAndNeverReusesId          // delete 3, insert -> id != 3
-insertAllIsAllOrNothing                // injected failure -> nothing persisted
+insertAllIsAllOrNothing                // a null draft -> nothing persisted
+insertAllPersistsEveryRow              // increasing ids, input order, one write
 roundTripsZeroAndFiveMillion
 roundTripsCommaQuoteAndUnicodeInDescription
 roundTripsUncategorizedValue
+unknownUpdateAndDeleteAreStorageExceptions
 ```
 
-`CsvTransactionRepositoryContractTest` supplies a temp-directory factory. A future SQLite adapter is "done" when the same base goes green. `SqliteTransactionRepositoryContractTest` would add migrations/pragmas on top.
+`CsvTransactionRepositoryContractTest` supplies a temp-directory factory; `InMemoryTransactionRepositoryContractTest` runs the same suite against the test fixture. A future SQLite adapter is "done" when the same base goes green. `SqliteTransactionRepositoryContractTest` would add migrations/pragmas on top.
 
 ### 12.3 Integration tests
 

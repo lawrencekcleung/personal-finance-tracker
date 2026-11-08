@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 10 / 50**
+**Progress: 14 / 50**
 
 ---
 
@@ -55,14 +55,14 @@ _JUnit is configured here with zero tests; the first real test is B1. A zero-tes
       · verify: `CsvReadTest` — absent file/dir, empty file, 2 rows · dep: C2 · 10m
 - [x] **C4** — Write path: `insert` (id from the sidecar high-water mark), `update`, `deleteById`, temp file + `ATOMIC_MOVE`
       · verify: `CsvWriteTest` — id assignment after delete, unknown-id delete, file contents after each op, sidecar recovery · dep: C3 · 15m
-- [ ] **C5** — `insertAll` override: one write, all-or-nothing
+- [x] **C5** — `insertAll` override: one write, all-or-nothing
       · verify: `CsvInsertAllTest` — one bad row → nothing persisted · dep: C4 · 5m
-- [ ] **C6** — `TransactionRepositoryContractTest` abstract + `CsvTransactionRepositoryContractTest`
-      · verify: all 9 contract cases of PRD §12.2 green · dep: C4, C5 · 10m
-- [ ] **C7** — `InMemoryTransactionRepository` (test fixture) + contract subclass + write counter
+- [x] **C6** — `TransactionRepositoryContractTest` abstract + `CsvTransactionRepositoryContractTest`
+      · verify: all contract cases of PRD §12.2 green on both adapters · dep: C4, C5 · 10m
+- [x] **C7** — `InMemoryTransactionRepository` (test fixture) + contract subclass + write counter
       · verify: contract suite passes; counter available to later no-write assertions · dep: C6 · 5m
-- [ ] **C8** — `RepositoryFactory`: `.csv` → adapter, `.db` → `UsageException`
-      · verify: `RepositoryFactoryTest` — 2 cases · dep: C4, B3 · 5m
+- [x] **C8** — `RepositoryFactory`: `.csv` → adapter, `.db` → `UsageException`
+      · verify: `RepositoryFactoryTest` — 3 cases · dep: C4, B3 · 5m
 
 _C7 is intentionally earlier than PRD §14's task 10: every service test needs a fake, and pulling it forward keeps phases E–J disk-free._
 
