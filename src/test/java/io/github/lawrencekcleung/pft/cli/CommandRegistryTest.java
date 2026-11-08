@@ -48,6 +48,13 @@ class CommandRegistryTest {
     }
 
     @Test
+    void defaultsRegistersTheShippedCommandsInOrder() {
+        assertEquals(List.of("add", "list"),
+                CommandRegistry.defaults().all().stream()
+                        .map(CommandDefinition::name).toList());
+    }
+
+    @Test
     void commandOptionsCannotShadowAGlobal() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
                 () -> new CommandDefinition("add", "adds", List.of(

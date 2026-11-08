@@ -1,5 +1,8 @@
 package io.github.lawrencekcleung.pft.cli;
 
+import io.github.lawrencekcleung.pft.cli.commands.AddCommand;
+import io.github.lawrencekcleung.pft.cli.commands.ListCommand;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -29,6 +32,15 @@ public final class CommandRegistry {
             }
         }
         this.commands = Collections.unmodifiableMap(byName);
+    }
+
+    /**
+     * Builds the registry with every shipped command.
+     *
+     * @return the production command table
+     */
+    public static CommandRegistry defaults() {
+        return new CommandRegistry(List.of(AddCommand.definition(), ListCommand.definition()));
     }
 
     /**

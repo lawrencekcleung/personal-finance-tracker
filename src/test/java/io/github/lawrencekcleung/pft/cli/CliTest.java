@@ -104,6 +104,19 @@ class CliTest {
         assertFalse(Files.exists(defaultDataPath()));
     }
 
+    @Test
+    void commandHelpWorksEvenWhenRequiredOptionsAreMissing() {
+        OptionSpec date = new OptionSpec("date", "the day", OptionType.DATE, true, null);
+
+        assertEquals(0, cli(List.of(command("probe", (args, ctx) -> {
+            throw new AssertionError("help must not run the command");
+        }, date))).run("probe", "--help"));
+
+        assertTrue(stdout().contains("Usage: pft probe"));
+        assertTrue(stdout().contains("--date <yyyy-MM-dd>"));
+        assertTrue(stderr().isEmpty());
+    }
+
     // ------------------------------------------------------------ exit codes
 
     @Test

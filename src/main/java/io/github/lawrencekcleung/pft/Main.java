@@ -3,8 +3,6 @@ package io.github.lawrencekcleung.pft;
 import io.github.lawrencekcleung.pft.cli.Cli;
 import io.github.lawrencekcleung.pft.cli.CommandRegistry;
 
-import java.util.List;
-
 /**
  * Entry point for the personal finance tracker.
  *
@@ -20,7 +18,6 @@ public final class Main {
     }
 
     public static void main(String[] args) {
-        CommandRegistry registry = new CommandRegistry(List.of());
-        System.exit(Cli.defaults(registry).run(args));
+        System.exit(Cli.defaults(CommandRegistry.defaults()).run(args));
     }
 }

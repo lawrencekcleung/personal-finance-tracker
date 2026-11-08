@@ -3,7 +3,7 @@
 Working checklist derived from `PRD.md` §14. 50 atomic tasks across 12 phases.
 Tick a task only when its verification passes on its own commit.
 
-**Progress: 21 / 50**
+**Progress: 24 / 50**
 
 ---
 
@@ -91,11 +91,11 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ## Phase E — `add` + `list` · PRD task 4 · 40m · cumulative 3h55
 
-- [ ] **E1** — `TransactionService.add` (validation order, repository insert)
+- [x] **E1** — `TransactionService.add` (validation order, repository insert)
       · verify: `TransactionServiceTest` on in-memory repo — happy path, invalid amount/date · dep: D7, C7 · 15m
-- [ ] **E2** — `AddCommand` (specs + handler) + registry entry
+- [x] **E2** — `AddCommand` (specs + handler) + registry entry
       · verify: `CliTest` — `add` writes one row to temp CSV, bad flags → exit 1 · dep: E1 · 10m
-- [ ] **E3** — `TablePrinter` + `ListCommand` (`--month`, `--category`), sort date→id
+- [x] **E3** — `TablePrinter` + `ListCommand` (`--month`, `--category`), sort date→id
       · verify: golden table test, empty-result message · dep: E2 · 15m
 
 > **Milestone 2 — after E3:** demoable MVP. `add`/`list` against a real file with real exit codes. Minimum credible submission.

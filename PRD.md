@@ -125,7 +125,12 @@ pft add --date 2026-11-01 --type expense --amount 42.50 \
 - `--amount` required, non-negative, ≤2dp.
 - `--description` required, trimmed, non-blank.
 - `--category` optional; absent means `UNCATEGORIZED`.
-- Prints `Added #<id>` plus the effective category.
+- Prints `Added #<id>` plus the effective category:
+
+  ```
+  $ pft add --date 2026-11-01 --type expense --amount 42.50 --description "Countdown, Auckland"
+  Added #1 (category: UNCATEGORIZED)
+  ```
 
 ### 5.2 `import` — bulk entry
 
@@ -146,7 +151,18 @@ Source schema: `date,type,amount,description[,category]`. Header optional (detec
 pft list [--month 2026-11] [--category groceries] [--uncategorized]
 ```
 
-Sorted by date ascending, then id ascending, independent of file order. Prints id, date, type, amount, category, description.
+Sorted by date ascending, then id ascending, independent of file order. Prints a fixed-width table:
+
+```
+$ pft list
+ID  Date        Type      Amount  Category       Description
+ 1  2026-11-01  income   5000.00  income         Salary Oct
+ 2  2026-11-01  expense    42.50  groceries      Countdown, Auckland
+```
+
+- `--month` and `--category` combine; `--uncategorized` is shorthand for
+  `--category UNCATEGORIZED` and cannot be combined with `--category`.
+- An empty result prints exactly `No transactions.` and exits `0`.
 
 ### 5.4 `categorize`
 

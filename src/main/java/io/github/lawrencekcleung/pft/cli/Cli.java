@@ -105,11 +105,12 @@ public final class Cli {
 
         List<String> optionTokens = new ArrayList<>(tokens);
         optionTokens.remove(commandIndex);
-        ParsedArgs parsed = parser.parse(definition.allOptions(), optionTokens);
-        if (parsed.flag("help")) {
+        // Help wins over validation: `pft add --help` must not demand --date.
+        if (optionTokens.contains("--help")) {
             out.println(help.command(definition));
             return 0;
         }
+        ParsedArgs parsed = parser.parse(definition.allOptions(), optionTokens);
 
         Path dataPath = resolveDataPath(parsed);
         try (TransactionRepository repository = RepositoryFactory.open(dataPath)) {
