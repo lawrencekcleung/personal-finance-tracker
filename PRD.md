@@ -689,16 +689,19 @@ Why this rule: it is the kind of thing a personal tracker actually surfaces, it 
 ## 10. Build, run, and deliverable hygiene
 
 ```
-build.gradle.kts        # java + application, toolchain 21, picocli, JUnit 5
+build.gradle.kts        # java + application, toolchain 21, picocli, JUnit 5, fatJar
 settings.gradle.kts
-.gitignore              # build/, .gradle/, data/, *.db
+.gitignore              # build/, .gradle/, data/, *.db, /pft.jar
+pft                     # committed launcher for the generated jar
 README.md
 PRD.md
 ```
 
 - `gradle test` — unit + contract + integration tests.
 - Runtime dependency: picocli 4.7.7 (resolved by Gradle and included in `installDist`).
-- `gradle build` — compiles and produces `build/libs/personal-finance-tracker-0.1.0.jar` with a main-class manifest. The plain jar is not a fat jar; use `installDist` for a runnable launcher.
+- `gradle build` — compiles, tests and produces `pft.jar` at the repository root: a self-contained jar (project classes plus picocli) with a main-class manifest. Run it with `./pft` or `java -jar pft.jar`; the jar is gitignored.
+- `gradle fatJar` — builds only the self-contained jar.
+- `gradle installDist` — runnable Gradle distribution at `build/install/pft/bin/pft` (also bundles picocli).
 - `gradle installDist` — runnable launcher at `build/install/pft/bin/pft` (generated, not committed).
 - `gradle run --args "summary --month 2026-11"` for ad-hoc use.
 - **No `gradlew` committed** (it bundles a jar). README states Gradle 8.5+ is required and shows `gradle wrapper` for anyone who wants a local wrapper.

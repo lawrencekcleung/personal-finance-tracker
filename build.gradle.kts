@@ -45,3 +45,31 @@ tasks.jar {
         attributes("Main-Class" to application.mainClass.get())
     }
 }
+
+val fatJar = tasks.register<Jar>("fatJar") {
+    group = "application"
+    description = "Builds the self-contained pft.jar at the repository root"
+    archiveFileName.set("pft.jar")
+    destinationDirectory.set(layout.projectDirectory)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes("Main-Class" to application.mainClass.get())
+    }
+    from(sourceSets.main.get().output)
+    dependsOn(configurations.runtimeClasspath)
+    from({
+        configurations.runtimeClasspath.get()
+            .filter { it.isFile }
+            .map { zipTree(it) }
+    })
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+    exclude("module-info.class")
+}
+
+tasks.named("assemble") {
+    dependsOn(fatJar)
+}
+
+tasks.named<Delete>("clean") {
+    delete(layout.projectDirectory.file("pft.jar"))
+}

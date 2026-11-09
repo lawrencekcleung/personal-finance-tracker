@@ -39,12 +39,33 @@ you want one.
 
 ```console
 gradle test
-gradle installDist
-build/install/pft/bin/pft --help
+gradle build
+./pft --help
 ```
 
-`installDist` is the runnable artifact: it bundles picocli. The plain jar under
-`build/libs/` has a main-class manifest but expects picocli on the classpath.
+`gradle build` produces a self-contained `pft.jar` at the repository root (framework plus
+picocli) and runs the tests. The committed `./pft` launcher runs that jar, so no classpath
+setup is needed:
+
+```console
+$ ./pft --version
+pft 0.1.0
+```
+
+`pft.jar` is generated and gitignored; `gradle clean` removes it and the next build
+recreates it. To type `pft` without `./`, either add the repository root to `PATH` or
+symlink the launcher into a directory already on `PATH`:
+
+```console
+$ ln -sf "$PWD/pft" ~/.local/bin/pft
+$ pft --version
+```
+
+The launcher resolves symlinks, so this works from any directory. `gradle fatJar` builds
+only the jar when you do not need the tests.
+
+`gradle installDist` is still available for a conventional Gradle distribution; it writes
+`build/install/pft/bin/pft` and bundles picocli under `build/install/pft/lib/`.
 
 Add `build/install/pft/bin` to `PATH` (or alias the binary) to use `pft` below.
 

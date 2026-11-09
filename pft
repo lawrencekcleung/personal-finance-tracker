@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# Runs the self-contained pft.jar built by `gradle build` (or `gradle fatJar`).
+# Works when invoked as ./pft or through a symlink on PATH.
+set -eu
+
+self=$0
+while [ -h "$self" ]; do
+    dir=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)
+    self=$(readlink "$self")
+    case $self in
+        /*) ;;
+        *) self=$dir/$self ;;
+    esac
+done
+root=$(CDPATH= cd -- "$(dirname -- "$self")" && pwd)
+jar=$root/pft.jar
+
+if [ ! -f "$jar" ]; then
+    echo "pft.jar not found; run 'gradle build' (or 'gradle fatJar') first." >&2
+    exit 1
+fi
+
+exec java -jar "$jar" "$@"
