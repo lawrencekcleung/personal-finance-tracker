@@ -1,17 +1,19 @@
 package io.github.lawrencekcleung.pft.cli.commands;
 
 import io.github.lawrencekcleung.pft.cli.AppContext;
-import io.github.lawrencekcleung.pft.cli.CommandDefinition;
-import io.github.lawrencekcleung.pft.cli.OptionSpec;
-import io.github.lawrencekcleung.pft.cli.OptionType;
-import io.github.lawrencekcleung.pft.cli.ParsedArgs;
+import io.github.lawrencekcleung.pft.cli.RootCommand;
 import io.github.lawrencekcleung.pft.cli.TablePrinter;
 import io.github.lawrencekcleung.pft.error.UsageException;
 import io.github.lawrencekcleung.pft.model.Transaction;
 import io.github.lawrencekcleung.pft.service.TransactionService;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * {@code list} — prints transactions in date-then-id order, optionally filtered.
@@ -19,55 +21,51 @@ import java.util.List;
  * <p>Filters are applied by {@link TransactionService}; the command owns only presentation and
  * the empty-result message.</p>
  */
-public final class ListCommand {
+@Command(name = "list", description = "list transactions, optionally filtered",
+        mixinStandardHelpOptions = true)
+public final class ListCommand implements Callable<Integer> {
 
     private static final List<String> HEADERS =
             List.of("ID", "Date", "Type", "Amount", "Category", "Description");
 
-    private ListCommand() {
-    }
+    @ParentCommand
+    private RootCommand root;
 
-    /**
-     * Declares the command.
-     *
-     * @return the definition registered in {@link io.github.lawrencekcleung.pft.cli.CommandRegistry}
-     */
-    public static CommandDefinition definition() {
-        return new CommandDefinition("list", "list transactions, optionally filtered",
-                List.of(
-                        new OptionSpec("month", "only this month (yyyy-MM)",
-                                OptionType.YEAR_MONTH, false, null),
-                        new OptionSpec("category", "only this category",
-                                OptionType.STRING, false, null),
-                        new OptionSpec("uncategorized", "only transactions with no category",
-                                OptionType.FLAG, false, null)),
-                ListCommand::run);
-    }
+    @Option(names = "--month", paramLabel = "<yyyy-MM>", description = "only this month")
+    private YearMonth month;
 
-    private static void run(ParsedArgs args, AppContext ctx) {
-        String category = args.optionalString("category").orElse(null);
-        boolean uncategorized = args.flag("uncategorized");
+    @Option(names = "--category", description = "only this category")
+    private String category;
+
+    @Option(names = "--uncategorized", description = "only transactions with no category")
+    private boolean uncategorized;
+
+    @Override
+    public Integer call() {
         if (category != null && uncategorized) {
             throw new UsageException("use either --category or --uncategorized, not both");
         }
 
-        List<Transaction> transactions = new TransactionService(ctx.repository()).list(
-                args.optionalMonth("month").orElse(null), category, uncategorized);
-        if (transactions.isEmpty()) {
-            ctx.out().println("No transactions.");
-            return;
-        }
+        try (AppContext ctx = root.context()) {
+            List<Transaction> transactions = new TransactionService(ctx.repository())
+                    .list(month, category, uncategorized);
+            if (transactions.isEmpty()) {
+                ctx.out().println("No transactions.");
+                return 0;
+            }
 
-        List<List<String>> rows = new ArrayList<>(transactions.size());
-        for (Transaction tx : transactions) {
-            rows.add(List.of(
-                    Integer.toString(tx.id()),
-                    tx.date().toString(),
-                    tx.type().wireName(),
-                    tx.amount().format(),
-                    tx.category(),
-                    tx.description()));
+            List<List<String>> rows = new ArrayList<>(transactions.size());
+            for (Transaction tx : transactions) {
+                rows.add(List.of(
+                        Integer.toString(tx.id()),
+                        tx.date().toString(),
+                        tx.type().wireName(),
+                        tx.amount().format(),
+                        tx.category(),
+                        tx.description()));
+            }
+            ctx.out().println(new TablePrinter().render(HEADERS, rows, 0, 3));
         }
-        ctx.out().println(new TablePrinter().render(HEADERS, rows, 0, 3));
+        return 0;
     }
 }

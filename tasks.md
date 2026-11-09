@@ -222,6 +222,20 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
 
 ---
 
+## Post-completion change — picocli (after L3)
+
+- CLI parsing/help/dispatch moved from the hand-written framework (D1–D7) to
+  `info.picocli:picocli:4.7.7`: `OptionType`, `OptionSpec`, `ArgumentParser`, `ParsedArgs`,
+  `CommandDefinition`, `CommandHandler`, `CommandRegistry` and `HelpPrinter` were deleted.
+- Commands are `@Command`/`@Option` classes; `MoneyConverter` and the exit-code handlers are the
+  only custom wiring left. `RootCommand` owns `--data`/`PFT_DATA` resolution, while `pft help`,
+  `-h`, `--version`, `--` and typo suggestions come from picocli.
+- PRD §2/§8/§12/§13/§14/§16/§17 and the README were updated; the dependency stance is now "a
+  small, well-supported library over hand-rolled infrastructure" for commodity features.
+- Test count: 308. Progress remains 50/50; functional behaviour is unchanged.
+
+---
+
 ## Definition of done (from PRD §18)
 
 - [ ] `gradle build` and `gradle test` pass from a clean checkout with only JDK 21 and Gradle installed

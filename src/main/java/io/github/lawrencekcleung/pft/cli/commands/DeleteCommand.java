@@ -1,13 +1,13 @@
 package io.github.lawrencekcleung.pft.cli.commands;
 
 import io.github.lawrencekcleung.pft.cli.AppContext;
-import io.github.lawrencekcleung.pft.cli.CommandDefinition;
-import io.github.lawrencekcleung.pft.cli.OptionSpec;
-import io.github.lawrencekcleung.pft.cli.OptionType;
-import io.github.lawrencekcleung.pft.cli.ParsedArgs;
+import io.github.lawrencekcleung.pft.cli.RootCommand;
 import io.github.lawrencekcleung.pft.service.TransactionService;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
-import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * {@code delete} — removes one transaction.
@@ -15,26 +15,23 @@ import java.util.List;
  * <p>Deletion rewrites the store but never renumbers ids, and the deleted id is not reused by a
  * later insert. Unknown ids are a data error (exit {@code 2}) and leave the file untouched.</p>
  */
-public final class DeleteCommand {
+@Command(name = "delete", description = "remove a transaction",
+        mixinStandardHelpOptions = true)
+public final class DeleteCommand implements Callable<Integer> {
 
-    private DeleteCommand() {
-    }
+    @ParentCommand
+    private RootCommand root;
 
-    /**
-     * Declares the command.
-     *
-     * @return the definition registered in {@link io.github.lawrencekcleung.pft.cli.CommandRegistry}
-     */
-    public static CommandDefinition definition() {
-        return new CommandDefinition("delete", "remove a transaction",
-                List.of(new OptionSpec("id", "transaction to remove",
-                        OptionType.INT, true, null)),
-                DeleteCommand::run);
-    }
+    @Option(names = "--id", required = true, paramLabel = "<n>",
+            description = "transaction to remove")
+    private int id;
 
-    private static void run(ParsedArgs args, AppContext ctx) {
-        int id = args.requireInt("id");
-        new TransactionService(ctx.repository()).delete(id);
-        ctx.out().println("Deleted #" + id + ".");
+    @Override
+    public Integer call() {
+        try (AppContext ctx = root.context()) {
+            new TransactionService(ctx.repository()).delete(id);
+            ctx.out().println("Deleted #" + id + ".");
+        }
+        return 0;
     }
 }

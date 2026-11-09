@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,15 +28,15 @@ class AddCommandTest {
 
     private final ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
     private final ByteArrayOutputStream errBytes = new ByteArrayOutputStream();
-    private final PrintStream out = new PrintStream(outBytes, true, StandardCharsets.UTF_8);
-    private final PrintStream err = new PrintStream(errBytes, true, StandardCharsets.UTF_8);
+    private final PrintWriter out = new PrintWriter(outBytes, true, StandardCharsets.UTF_8);
+    private final PrintWriter err = new PrintWriter(errBytes, true, StandardCharsets.UTF_8);
 
     private Path data() {
         return dir.resolve("data/transactions.csv");
     }
 
     private Cli cli() {
-        return new Cli(CommandRegistry.defaults(), out, err, CLOCK, Map.of(), data());
+        return Cli.create(CLOCK, Map.of(), data(), out, err);
     }
 
     private String stdout() {
@@ -79,7 +79,7 @@ class AddCommandTest {
         assertEquals(0, cli().run("add", "--help"));
 
         assertTrue(stdout().contains("Usage: pft add"));
-        assertTrue(stdout().contains("--description <value>"));
+        assertTrue(stdout().contains("--description"));
         assertTrue(stderr().isEmpty());
     }
 
@@ -89,7 +89,8 @@ class AddCommandTest {
                 "--date", "2026-11-01", "--type", "expense", "--amount", "42.50");
 
         assertEquals(1, exit);
-        assertTrue(stderr().contains("missing required option --description"));
+        assertTrue(stderr().contains("Missing required option"));
+        assertTrue(stderr().contains("--description"));
         assertFalse(Files.exists(data()));
     }
 
@@ -100,7 +101,8 @@ class AddCommandTest {
                 "--amount", "42.505", "--description", "Shop");
 
         assertEquals(1, exit);
-        assertTrue(stderr().contains("--amount: expected an amount with at most 2 decimals"));
+        assertTrue(stderr().contains("Invalid value for option '--amount'"));
+        assertTrue(stderr().contains("invalid amount '42.505'"));
         assertFalse(Files.exists(data()));
     }
 
@@ -111,7 +113,7 @@ class AddCommandTest {
                 "--amount", "1.00", "--description", "Shop");
 
         assertEquals(1, exit);
-        assertTrue(stderr().contains("--date: expected yyyy-MM-dd"));
+        assertTrue(stderr().contains("Invalid value for option '--date'"));
         assertFalse(Files.exists(data()));
     }
 

@@ -1,56 +1,59 @@
 package io.github.lawrencekcleung.pft.cli.commands;
 
 import io.github.lawrencekcleung.pft.cli.AppContext;
-import io.github.lawrencekcleung.pft.cli.CommandDefinition;
-import io.github.lawrencekcleung.pft.cli.OptionSpec;
-import io.github.lawrencekcleung.pft.cli.OptionType;
-import io.github.lawrencekcleung.pft.cli.ParsedArgs;
+import io.github.lawrencekcleung.pft.cli.MoneyConverter;
+import io.github.lawrencekcleung.pft.cli.RootCommand;
+import io.github.lawrencekcleung.pft.model.Money;
 import io.github.lawrencekcleung.pft.model.Transaction;
 import io.github.lawrencekcleung.pft.service.TransactionService;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
-import java.util.List;
+import java.time.LocalDate;
+import java.util.concurrent.Callable;
 
 /**
  * {@code add} — records a single transaction.
  *
- * <p>Validation lives in {@link TransactionService}; the command only declares flags, reads
- * typed values and prints the stored id with the effective category.</p>
+ * <p>Validation lives in {@link TransactionService}; the command only declares flags, hands the
+ * typed values to the service and prints the stored id with the effective category.</p>
  */
-public final class AddCommand {
+@Command(name = "add", description = "record a single income or expense",
+        mixinStandardHelpOptions = true)
+public final class AddCommand implements Callable<Integer> {
 
-    private AddCommand() {
-    }
+    @ParentCommand
+    private RootCommand root;
 
-    /**
-     * Declares the command.
-     *
-     * @return the definition registered in {@link io.github.lawrencekcleung.pft.cli.CommandRegistry}
-     */
-    public static CommandDefinition definition() {
-        return new CommandDefinition("add", "record a single income or expense",
-                List.of(
-                        new OptionSpec("date", "the day of the transaction",
-                                OptionType.DATE, true, null),
-                        new OptionSpec("type", "income or expense",
-                                OptionType.STRING, true, null),
-                        new OptionSpec("amount",
-                                "non-negative magnitude with at most 2 decimals",
-                                OptionType.AMOUNT, true, null),
-                        new OptionSpec("description", "what the transaction was for",
-                                OptionType.STRING, true, null),
-                        new OptionSpec("category", "category (default: UNCATEGORIZED)",
-                                OptionType.STRING, false, null)),
-                AddCommand::run);
-    }
+    @Option(names = "--date", required = true, paramLabel = "<yyyy-MM-dd>",
+            description = "the day of the transaction")
+    private LocalDate date;
 
-    private static void run(ParsedArgs args, AppContext ctx) {
-        Transaction stored = new TransactionService(ctx.repository()).add(
-                args.requireDate("date"),
-                args.requireString("type"),
-                args.requireAmount("amount"),
-                args.requireString("description"),
-                args.optionalString("category").orElse(null));
+    @Option(names = "--type", required = true, paramLabel = "<income|expense>",
+            description = "income or expense")
+    private String type;
 
-        ctx.out().println("Added #" + stored.id() + " (category: " + stored.category() + ")");
+    @Option(names = "--amount", required = true, paramLabel = "<amount>",
+            description = "non-negative magnitude with at most 2 decimals",
+            converter = MoneyConverter.class)
+    private Money amount;
+
+    @Option(names = "--description", required = true,
+            description = "what the transaction was for")
+    private String description;
+
+    @Option(names = "--category", description = "category (default: UNCATEGORIZED)")
+    private String category;
+
+    @Override
+    public Integer call() {
+        try (AppContext ctx = root.context()) {
+            Transaction stored = new TransactionService(ctx.repository()).add(
+                    date, type, amount, description, category);
+            ctx.out().println("Added #" + stored.id()
+                    + " (category: " + stored.category() + ")");
+        }
+        return 0;
     }
 }

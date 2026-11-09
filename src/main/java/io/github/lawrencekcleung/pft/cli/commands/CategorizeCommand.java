@@ -1,19 +1,18 @@
 package io.github.lawrencekcleung.pft.cli.commands;
 
 import io.github.lawrencekcleung.pft.cli.AppContext;
-import io.github.lawrencekcleung.pft.cli.CommandDefinition;
-import io.github.lawrencekcleung.pft.cli.OptionSpec;
-import io.github.lawrencekcleung.pft.cli.OptionType;
-import io.github.lawrencekcleung.pft.cli.ParsedArgs;
+import io.github.lawrencekcleung.pft.cli.RootCommand;
 import io.github.lawrencekcleung.pft.error.UsageException;
 import io.github.lawrencekcleung.pft.model.Transaction;
 import io.github.lawrencekcleung.pft.rules.RuleRegistry;
 import io.github.lawrencekcleung.pft.service.CategorizationService;
 import io.github.lawrencekcleung.pft.service.CategoryChange;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.OptionalInt;
+import java.util.concurrent.Callable;
 
 /**
  * {@code categorize} — dry-runs or applies the keyword rules, and performs manual overrides.
@@ -23,82 +22,77 @@ import java.util.OptionalInt;
  * with {@code --apply} assigns the override first and then categorizes the remaining rows.
  * Re-running {@code --apply} is a no-op once everything is categorized.</p>
  */
-public final class CategorizeCommand {
+@Command(name = "categorize",
+        description = "assign categories by rules, or override one transaction",
+        mixinStandardHelpOptions = true)
+public final class CategorizeCommand implements Callable<Integer> {
 
-    private CategorizeCommand() {
-    }
+    @ParentCommand
+    private RootCommand root;
 
-    /**
-     * Declares the command.
-     *
-     * @return the definition registered in {@link io.github.lawrencekcleung.pft.cli.CommandRegistry}
-     */
-    public static CommandDefinition definition() {
-        return new CommandDefinition("categorize",
-                "assign categories by rules, or override one transaction",
-                List.of(
-                        new OptionSpec("apply", "write the planned changes",
-                                OptionType.FLAG, false, null),
-                        new OptionSpec("id", "transaction to categorize manually",
-                                OptionType.INT, false, null),
-                        new OptionSpec("category", "category for --id",
-                                OptionType.STRING, false, null)),
-                CategorizeCommand::run);
-    }
+    @Option(names = "--apply", description = "write the planned changes")
+    private boolean apply;
 
-    private static void run(ParsedArgs args, AppContext ctx) {
-        OptionalInt id = args.optionalInt("id");
-        Optional<String> category = args.optionalString("category");
-        boolean apply = args.flag("apply");
+    @Option(names = "--id", paramLabel = "<n>",
+            description = "transaction to categorize manually")
+    private Integer id;
 
-        if (id.isPresent() && category.isEmpty()) {
+    @Option(names = "--category", description = "category for --id")
+    private String category;
+
+    @Override
+    public Integer call() {
+        if (id != null && category == null) {
             throw new UsageException("--id requires --category");
         }
-        if (id.isEmpty() && category.isPresent()) {
+        if (id == null && category != null) {
             throw new UsageException("--category requires --id");
         }
 
-        CategorizationService service =
-                new CategorizationService(ctx.repository(), RuleRegistry.defaults());
+        try (AppContext ctx = root.context()) {
+            CategorizationService service =
+                    new CategorizationService(ctx.repository(), RuleRegistry.defaults());
 
-        boolean overridden = false;
-        if (id.isPresent()) {
-            Transaction updated = service.override(id.getAsInt(), category.orElseThrow());
-            ctx.out().println("Categorized #" + updated.id() + " as "
-                    + updated.category() + ".");
-            overridden = true;
-        }
-        if (!apply && overridden) {
-            return;
-        }
-
-        List<CategoryChange> plan = service.plan();
-        for (CategoryChange change : plan) {
-            ctx.out().println("#" + change.transaction().id()
-                    + "  " + change.from() + " -> " + change.to()
-                    + "  \"" + change.transaction().description() + "\"");
-        }
-
-        if (apply) {
-            if (plan.isEmpty()) {
-                if (!overridden) {
-                    ctx.out().println("No uncategorized transactions.");
-                }
-                return;
+            boolean overridden = false;
+            if (id != null) {
+                Transaction updated = service.override(id, category);
+                ctx.out().println("Categorized #" + updated.id() + " as "
+                        + updated.category() + ".");
+                overridden = true;
             }
-            int applied = service.apply(plan);
-            ctx.out().println("Categorized " + applied
-                    + (applied == 1 ? " transaction." : " transactions."));
-            return;
-        }
+            if (!apply && overridden) {
+                return 0;
+            }
 
-        if (plan.isEmpty()) {
-            ctx.out().println("No uncategorized transactions.");
-            return;
+            List<CategoryChange> plan = service.plan();
+            for (CategoryChange change : plan) {
+                ctx.out().println("#" + change.transaction().id()
+                        + "  " + change.from() + " -> " + change.to()
+                        + "  \"" + change.transaction().description() + "\"");
+            }
+
+            if (apply) {
+                if (plan.isEmpty()) {
+                    if (!overridden) {
+                        ctx.out().println("No uncategorized transactions.");
+                    }
+                    return 0;
+                }
+                int applied = service.apply(plan);
+                ctx.out().println("Categorized " + applied
+                        + (applied == 1 ? " transaction." : " transactions."));
+                return 0;
+            }
+
+            if (plan.isEmpty()) {
+                ctx.out().println("No uncategorized transactions.");
+                return 0;
+            }
+            ctx.out().println("Dry run: " + plan.size()
+                    + (plan.size() == 1 ? " transaction would be categorized."
+                            : " transactions would be categorized.")
+                    + " Use --apply to write.");
         }
-        ctx.out().println("Dry run: " + plan.size()
-                + (plan.size() == 1 ? " transaction would be categorized."
-                        : " transactions would be categorized.")
-                + " Use --apply to write.");
+        return 0;
     }
 }

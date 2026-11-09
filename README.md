@@ -1,6 +1,6 @@
 # pft — personal finance tracker
 
-`pft` is a small, dependency-free command-line tracker for one person's income and
+`pft` is a small command-line tracker for one person's income and
 expenses. It keeps everything in a plain CSV file, imports bank-style exports with
 per-row validation, categorizes transactions on demand from an ordered keyword table,
 prints monthly spend summaries, and flags likely duplicate charges with a rule-based
@@ -43,7 +43,14 @@ gradle installDist
 build/install/pft/bin/pft --help
 ```
 
+`installDist` is the runnable artifact: it bundles picocli. The plain jar under
+`build/libs/` has a main-class manifest but expects picocli on the classpath.
+
 Add `build/install/pft/bin` to `PATH` (or alias the binary) to use `pft` below.
+
+The only runtime dependency is [picocli](https://picocli.info/) 4.7.7, used for
+parsing, generated help, subcommand dispatch and typo suggestions. The domain,
+storage and rule code have no dependencies.
 `gradle -q run --args="summary --month 2026-11"` works too.
 
 The data file is created on the first write. `list`, `summary`, `analyze` and
@@ -58,7 +65,7 @@ src/main/java/io/github/lawrencekcleung/pft/
   store/    TransactionRepository, CSV codec/repository, factory
   service/  add/list/import/categorize/summary use cases
   rules/    rule model, registry, keyword and duplicate-charge rules
-  cli/      options, parser, help, dispatch, formatters, commands
+  cli/      picocli root/commands, converters, handlers, formatters
   error/    UsageException, DataException, StorageException
 ```
 
@@ -210,10 +217,12 @@ highest row therefore cannot make the next insert reuse it.
 `ATOMIC_MOVE`, so a kill mid-write leaves the previous file intact. `insertAll` writes
 once, which is why a partial import commits all valid rows in one step.
 
-**Two small frameworks, not a container.** Options and commands are declared, not parsed
-ad hoc: `OptionSpec`/`OptionType` drive parsing and help from one source. Rules are
-registered explicitly in `RuleRegistry` — no reflection, service loader, config file or
-DI container. Both frameworks are deletion-testable and documented by recipes below.
+**Small libraries over hand-rolled infrastructure.** Picocli owns argument parsing,
+generated help, subcommand dispatch, `-h`/`--version` and typo suggestions; the
+[Command Line Interface Guidelines](https://clig.dev/) recommend using a parsing library,
+and this removed roughly 800 lines of custom parser/help code. The rule framework stays
+explicit in `RuleRegistry` — no reflection, service loader, config file or DI container.
+Both extension paths are documented by recipes below.
 
 **Error mapping lives in one place.** Commands throw `UsageException` (1),
 `DataException`/`StorageException` (2); `Cli` maps types to exit codes and `Main` calls
@@ -232,17 +241,17 @@ by earliest date then ids.
 
 ### Add an option
 
-1. Add one `OptionSpec` to the command definition.
-2. Read it with the matching typed accessor (`requireString`, `optionalMonth`,
-   `requireAmount`, `flag`, …).
-3. Add one parser/command test. Help updates automatically.
+1. Add one annotated field to the command class:
+   `@Option(names = "--account", description = "Account label") String account;`
+2. Read the field in `call()`.
+3. Add one command test. Help updates automatically.
 
 ### Add a command
 
-1. Implement a `CommandHandler` (or a static `definition()` factory like the existing
-   commands in `cli/commands/`).
-2. Register the `CommandDefinition` in `CommandRegistry.defaults()`.
-3. Dispatch, help and exit-code mapping need no change; add an integration test.
+1. Implement a `Callable<Integer>` annotated with `@Command` in `cli/commands/`.
+2. Add the class to `RootCommand`'s `subcommands`.
+3. Return `0` on success, throw the appropriate domain exception on failure, and add an
+   integration test. Dispatch, help and exit-code mapping are already generic.
 
 ### Add an analysis rule
 
@@ -273,7 +282,7 @@ Porting map for SQLite:
 
 ## Testing
 
-`gradle test` runs 363 fast tests with no network or shared state:
+`gradle test` runs 308 fast tests with no network or shared state:
 
 - domain and money parsing, including the two-decimal and overflow rules;
 - codec round-trips for comma, quote, newline, Unicode, CRLF and BOM;

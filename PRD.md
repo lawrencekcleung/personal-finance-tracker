@@ -6,7 +6,7 @@
 | Source | Take-home exercise brief (kept outside this repo) |
 | Language / build | Java 21, Gradle 9.x (Kotlin DSL), JUnit 5 |
 | Storage | Flat CSV file behind a swappable repository interface |
-| Runtime dependencies | None |
+| Runtime dependencies | `info.picocli:picocli:4.7.7` (CLI parsing, help, dispatch) |
 | Estimate | ~7h35m human effort (upper bound, incl. tests and docs) |
 
 ---
@@ -34,7 +34,7 @@ Non-goals: multi-user, authentication, multi-currency, budgets, cloud sync, UI, 
 | Summary: total spend, spend by category | `summary` (§5.6, §6.4) |
 | One rule-based analysis, not the $50 example | `duplicate-charge` analysis rule (§9.3) |
 | Usable as a tracker, assumptions stated | §4 assumptions, §7 persistence, §13 README |
-| Readable, maintainable, testable, extensible | §8 CLI framework, §9 rule framework, §7.4 seam, §12 testing |
+| Readable, maintainable, testable, extensible | §8 picocli CLI, §9 rule framework, §7.4 seam, §12 testing |
 | Source/text only, no binaries | §10 build (no `gradlew`, no committed data) |
 
 ---
@@ -46,7 +46,7 @@ Non-goals: multi-user, authentication, multi-currency, budgets, cloud sync, UI, 
 | Language | Java 21 | Strongest JVM option; records, `switch` expressions, `sealed`, text blocks |
 | Build | Gradle 9.x, Kotlin DSL, toolchain 21 | Requested over Maven; `application` plugin gives `installDist` launcher |
 | Wrapper | **Not committed** | `gradlew` bundles a jar; the brief asks for text only. README states Gradle 8.5+ is required and shows how to generate a wrapper locally |
-| Dependencies | Zero at runtime; JUnit 5 for tests | Keeps the repo text-only and the build network-free |
+| Dependencies | One small runtime library; JUnit 5 for tests | Parsing, generated help and subcommand dispatch are commodity problems. Using a focused, well-supported library removes ~800 lines of hand-written infrastructure and follows clig.dev; the domain, storage and rules stay dependency-free |
 | Persistence | CSV behind `TransactionRepository` | Human-readable, diffable, eyeball-able in an interview; seam allows SQLite later without touching services |
 | Money | `long` cents in a `Money` record | Exact, no rounding modes, no `BigDecimal.equals` trap. `BigDecimal` deliberately avoided |
 | Direction | `TransactionType` (income/expense) carries sign; amounts stored non-negative | Keeps money free of sign rules; one `partitioningBy` for totals |
@@ -61,7 +61,7 @@ Non-goals: multi-user, authentication, multi-currency, budgets, cloud sync, UI, 
 ## 3. Architecture overview
 
 ```
-CLI (ArgParser + CommandRegistry)
+CLI (picocli commands + RootCommand)
   └── Commands (one class per verb) ──> Services
                                           ├── TransactionService   (add/import/list/delete)
                                           ├── CategorizationService (dry-run/apply/override)
@@ -459,13 +459,16 @@ public final class RepositoryFactory {
 Wiring, one line, nothing above it knows the format:
 
 ```java
-CommandRegistry registry = new CommandRegistry(List.of(/* one definition per command */));
-int exitCode = Cli.defaults(registry).run(args);
+Cli cli = Cli.create(Clock.systemDefaultZone(), System.getenv(),
+        Cli.DEFAULT_DATA_PATH,
+        new PrintWriter(System.out, true),
+        new PrintWriter(System.err, true));
+int exitCode = cli.run(args);
 ```
 
-`Cli` resolves the data path (`--data` → `PFT_DATA` → default), opens the adapter through
-`RepositoryFactory`, and closes it after the handler returns, so services still never see a
-`Path`.
+`Cli` builds the picocli command tree and wires streams/handlers. `RootCommand` resolves the
+data path (`--data` → `PFT_DATA` → default) and opens the adapter through `RepositoryFactory`
+for each command invocation, then closes it, so services still never see a `Path`.
 
 Swapping stores is then **configuration, not code**: `pft --data data/pft.db summary` starts working the day the adapter lands.
 
@@ -525,69 +528,75 @@ Summary for that file: income `5000.00`, expenses `184.60`, net `+4815.40`, five
 
 ---
 
-## 8. CLI framework (extensible arguments)
+## 8. CLI — declared with picocli
 
-Options are **declared**, not parsed ad hoc.
+The CLI uses [picocli](https://picocli.info/) (`info.picocli:picocli:4.7.7`) instead of a
+hand-written parser. Parsing, generated help, subcommand dispatch, `-h`/`--version`, the `--`
+delimiter, repeated-option detection and typo suggestions are commodity problems, and the
+[Command Line Interface Guidelines](https://clig.dev/) explicitly recommend using a parsing
+library ("Java: picocli"). Buying these ~800 lines of infrastructure is the repository's main
+"less code by using a small, well-supported library" decision.
 
 ```java
-public record OptionSpec(String name, String help, OptionType type,
-                         boolean required, String defaultValue) {}
+@Command(name = "pft", version = "pft 0.1.0", mixinStandardHelpOptions = true,
+        subcommands = {CommandLine.HelpCommand.class, AddCommand.class, /* ... */})
+final class RootCommand implements Callable<Integer> {
+    @Option(names = "--data", scope = ScopeType.INHERIT, paramLabel = "<path>")
+    Path dataPath;
 
-public enum OptionType {
-    STRING, FLAG, DATE, AMOUNT, YEAR_MONTH, INT, PATH;
+    @Spec CommandSpec spec;
+    // context(): --data -> PFT_DATA -> ./data/transactions.csv, then opens the repository
 
-    private static final Map<OptionType, Function<String, Object>> CONVERTERS = Map.of(
-        STRING,     s -> s,
-        FLAG,       s -> true,
-        DATE,       s -> LocalDate.parse(s, DateTimeFormatter.ISO_LOCAL_DATE),
-        AMOUNT,     Money::parse,
-        YEAR_MONTH, YearMonth::parse,
-        INT,        Integer::parseInt,
-        PATH,       Path::of);
+    @Override public Integer call() {           // no subcommand
+        spec.commandLine().usage(spec.commandLine().getErr());
+        return 1;
+    }
 }
 
-public record CommandDefinition(String name, String summary,
-                                List<OptionSpec> options, CommandHandler handler) {
-    public List<OptionSpec> allOptions();   // command options + globals (--data, --help)
-}
-
-@FunctionalInterface
-public interface CommandHandler {
-    void run(ParsedArgs args, AppContext ctx) throws UsageException;
-}
-
-public final class ParsedArgs {
-    public String requireString(String name);
-    public Optional<String> optionalString(String name);
-    public Money requireAmount(String name);
-    public LocalDate requireDate(String name);
-    public YearMonth optionalMonth(String name);
-    public int requireInt(String name);
-    public OptionalInt optionalInt(String name);
-    public Optional<Path> optionalPath(String name);   // for the global --data
-    public boolean flag(String name);
+@Command(name = "add", description = "record a single income or expense",
+        mixinStandardHelpOptions = true)
+final class AddCommand implements Callable<Integer> {
+    @ParentCommand RootCommand root;
+    @Option(names = "--date", required = true, paramLabel = "<yyyy-MM-dd>") LocalDate date;
+    @Option(names = "--amount", required = true, converter = MoneyConverter.class) Money amount;
+    @Option(names = "--description", required = true) String description;
+    // ... call() delegates to TransactionService
 }
 ```
 
 Behaviour:
 
-- `ArgumentParser` supports `--name value` and `--name=value`, validates required options, and converts **eagerly**. Conversion failures become `UsageException("--date: expected yyyy-MM-dd")` — one consistent error shape.
-- `CommandRegistry` is a `Map<String, CommandDefinition>`; `Main` contains no `switch` on command names.
-- `HelpPrinter` renders root and per-command help from the specs, so docs cannot drift.
-- Globals (`--data`, `--help`) are appended to every command definition in one place.
-- Parsing is deliberately **imperative** (index-based token scan) — streams buy nothing there. This is called out so a reviewer doesn't read it as inconsistency.
+- `--name value` and `--name=value` are both accepted.
+- Conversion is declarative: picocli's built-ins cover `Path`, `LocalDate` and `YearMonth`;
+  `MoneyConverter` delegates to `Money.parse`, so the CLI and the domain accept exactly the same
+  amounts. Conversion failures are reported as usage errors.
+- `-h`/`--help`, `--version`, `pft help <command>` and `--` come from picocli.
+- Unknown commands and options get a "Did you mean" suggestion when picocli can compute one.
+- `--data` is inherited, so it may appear before or after the subcommand. Resolution remains
+  `--data` → `PFT_DATA` → `./data/transactions.csv`.
+- `Cli` configures the streams, parameter handler and execution handler once; commands return `0`
+  and throw domain exceptions. `UsageException` maps to `1`, `DataException`/`StorageException`
+  to `2`, and `Main` calls `System.exit` exactly once.
+- Help is generated from the annotations, so options and documentation cannot drift.
+- Commands never touch `System.out`; `AppContext` carries the `PrintWriter` pair, which keeps CLI
+  tests in-process.
+
+The custom parser this replaced (`OptionType`, `OptionSpec`, `ArgumentParser`, `ParsedArgs`,
+`CommandDefinition`, `CommandHandler`, `CommandRegistry`, `HelpPrinter`) is deleted, along with
+its parser/help tests.
 
 ### 8.1 Recipe — add an option
 
-1. Add one line to the command definition: `new OptionSpec("account", "Account label", STRING, false, "default")`.
-2. Read it: `args.optionalString("account")`.
-3. Add one parser test. Help text updates automatically.
+1. Add one annotated field: `@Option(names = "--account", description = "Account label") String account;`
+2. Read the field in `call()`.
+3. Add one command test. Help updates automatically.
 
 ### 8.2 Recipe — add a command
 
-1. Implement `CommandHandler` in `cli/commands/`.
-2. Add one `CommandDefinition` to the registry.
-3. Nothing else changes: dispatch, help, and exit-code mapping are already generic.
+1. Implement a `Callable<Integer>` annotated with `@Command` in `cli/commands/`.
+2. Add the class to `RootCommand`'s `subcommands`.
+3. Return `0` on success and throw `UsageException`/`DataException`/`StorageException` as
+   appropriate. Dispatch, help and exit-code mapping are already generic.
 
 ---
 
@@ -680,7 +689,7 @@ Why this rule: it is the kind of thing a personal tracker actually surfaces, it 
 ## 10. Build, run, and deliverable hygiene
 
 ```
-build.gradle.kts        # java + application, toolchain 21, JUnit 5
+build.gradle.kts        # java + application, toolchain 21, picocli, JUnit 5
 settings.gradle.kts
 .gitignore              # build/, .gradle/, data/, *.db
 README.md
@@ -688,7 +697,8 @@ PRD.md
 ```
 
 - `gradle test` — unit + contract + integration tests.
-- `gradle build` — compiles and produces `build/libs/pft.jar` with a main-class manifest.
+- Runtime dependency: picocli 4.7.7 (resolved by Gradle and included in `installDist`).
+- `gradle build` — compiles and produces `build/libs/personal-finance-tracker-0.1.0.jar` with a main-class manifest. The plain jar is not a fat jar; use `installDist` for a runnable launcher.
 - `gradle installDist` — runnable launcher at `build/install/pft/bin/pft` (generated, not committed).
 - `gradle run --args "summary --month 2026-11"` for ad-hoc use.
 - **No `gradlew` committed** (it bundles a jar). README states Gradle 8.5+ is required and shows `gradle wrapper` for anyone who wants a local wrapper.
@@ -712,13 +722,13 @@ Exceptions:
 - `UsageException` — bad invocation → exit `1`.
 - `DataException` — invalid data or unknown id → exit `2`.
 - `StorageException` — corrupt/unwritable store → exit `2`.
-- Only `Main` maps exceptions to codes; no `System.exit` deeper in the stack.
+- `Cli` configures the picocli parameter/execution handlers that map exceptions to codes; only `Main` calls `System.exit`.
 
 ---
 
 ## 12. Testing strategy
 
-Target ~30–35 tests, all fast, no network, no shared state.
+300+ fast tests, no network, no shared state.
 
 ### 12.1 Unit tests
 
@@ -727,7 +737,7 @@ Target ~30–35 tests, all fast, no network, no shared state.
 | `Money` | the §6.1 table; `plus`/`minus` including negative net; `format`/`formatSigned`; overflow throws |
 | `Transaction` | blank description, negative amount, category defaulting |
 | CSV codec | comma/quote/newline/Unicode round-trip; header detection; corrupt line reporting with line number; temp file cleanup |
-| `ArgumentParser` | `--k=v`, separate value, missing required, unknown option, bad type conversions, generated help |
+| CLI wiring | exit codes 0/1/2, `--data` before/after the command, `PFT_DATA` precedence, help/version, typo suggestions |
 | Keyword rules | first-match wins, case-insensitivity, already-categorized untouched |
 | Summary | totals, net sign, grouping order, empty month, zero expenses (no divide-by-zero) |
 | `DuplicateChargeRule` | day 3 vs day 4 boundary, same amount different description, income excluded, same-day pair, multiple pairs |
@@ -779,11 +789,13 @@ Use streams for collection transformation; keep imperative code where it is clea
 | `import` | `IntStream.range(0, lines.size())` so each row keeps its source line number |
 | Formatting | `Collectors.joining`, `String.format(Locale.ROOT, ...)` |
 
+**Delegated to picocli:**
+
+- Argument tokenisation, help rendering, subcommand dispatch, `-h`/`--version`, typo suggestions.
+
 **Deliberately not used:**
 
-- CSV tokenizer — quote-aware state machine.
-- `ArgumentParser` — index-based token scan.
-- Command dispatch — `Map` lookup.
+- CSV tokenizer — quote-aware state machine in `CsvCodec`.
 - File writes — `BufferedWriter` loop inside the atomic write.
 - Anywhere a checked exception would need a sneaky-throws wrapper.
 
@@ -800,7 +812,7 @@ Every task ends with a green `gradle test` and something demonstrable. Task boun
 | 0 | Gradle scaffold — KTS build, toolchain 21, JUnit 5, `application` plugin, manifest, `.gitignore`, `git init` | `gradle test` and `gradle installDist` succeed | 20m |
 | 1 | Domain — `Money`, `Transaction`, `TransactionType`, validation + tests | §6.1 table passes; invalid input rejected with clear messages | 30m |
 | 2 | Repository seam + CSV adapter — interface, `StorageException`, factory, contract base class, CSV impl, CSV-specific tests | Contract suite green; comma/quote/Unicode round-trip; atomic write | 55m |
-| 3 | CLI framework — `OptionSpec`, `OptionType`, `ParsedArgs`, `ArgumentParser`, `CommandDefinition`, `CommandRegistry`, `HelpPrinter`, exceptions | Parser and help tests; unknown option and bad type produce `--name: ...` messages | 60m |
+| 3 | CLI — picocli `@Command`/`@Option` classes, `MoneyConverter`, exception handlers, `Cli` wiring | Help/version/suggestions; exit codes; `--data` precedence | 30m |
 | 4 | `add` + `list` through the framework | End-to-end against a temp data file | 40m |
 | 5 | `import` — header detection, per-line errors, skip-bad-rows, single write | 10-row fixture imports; exit `2` on one bad row; no id gap | 30m |
 | 6 | Rule framework — interfaces, `Finding`, `AnalysisContext`, `RuleRegistry`, contract base + uniqueness test | Framework green with one stub rule | 30m |
@@ -815,7 +827,7 @@ Every task ends with a green `gradle test` and something demonstrable. Task boun
 Notes on scope:
 
 - The figure includes tests and documentation. The functional path (tasks 0–9 + 11) is ~6h50m; a minimal "works and is documented" cut is ~5h.
-- The two frameworks cost ~90m up front and make tasks 4–10 nearly mechanical — that is the maintainability story to tell in the interview.
+- Picocli plus the small rule framework make tasks 4–10 nearly mechanical — that is the maintainability story to tell in the interview.
 - Earlier drafts quoted 5h45m and 6h10m; both predated the CLI framework, the rule framework task, and the persistence seam, and the later arithmetic slipped. The table above is authoritative.
 - If time-boxed: drop task 10's `delete`/`--uncategorized`/`InMemoryTransactionRepository` extras first, then trim the README recipes. Do **not** drop the seam, the contract test, or the analysis rule.
 
@@ -847,7 +859,7 @@ Rejected for now, stated in the README: `ServiceLoader` rule discovery (indirect
 | "No binaries" vs. Gradle wrapper | Reviewer can't build | Ship no wrapper; README states Gradle 8.5+ and shows `gradle wrapper` |
 | Reviewer can't see the data model intuitively | Harder interview | CSV is diffable; §7.6 transcript shows the file evolving |
 | Rule seen as derivative of the brief's example | Loses the credit for the optional part | `duplicate-charge` is unrelated to a `$50` threshold and has real edge cases |
-| Framework code reads as over-engineering | Credibility loss on "keep it simple" | Frameworks are ~250–300 lines total, each deletion-testable, each with a one-line recipe; no reflection, no config, no DI container |
+| Third-party CLI dependency | Adds a jar; one more thing a reviewer must trust | Picocli is the library clig.dev recommends for Java, is used widely, and replaces ~800 lines of custom parser/help/dispatch; the alternative is documented in git history |
 | Full-file rewrite at scale | Slower with tens of thousands of rows | Explicitly out of scope (§4), with SQLite as the documented escape hatch |
 | Hidden nondeterminism in aggregation | Flaky tests, wrong output | TreeMap/ordered collectors, ascending sorts, no parallel streams |
 
@@ -859,7 +871,7 @@ Rejected for now, stated in the README: `ServiceLoader` rule discovery (indirect
 2. Build and run: Gradle requirement, `gradle installDist`, `gradle test`, `gradle run`.
 3. Five-minute tour: the §7.6 transcript with the file shown at the interesting steps.
 4. Commands reference with exit codes.
-5. Design notes: why `long` cents, why CSV now, why the repository seam, why these two frameworks and not more.
+5. Design notes: why `long` cents, why CSV now, why the repository seam, why picocli plus one small rules framework and not more.
 6. How to extend: add an option (§8.1), add a command (§8.2), add an analysis rule (§9.4), add a persistence adapter (§7.5).
 7. Known limitations, straight from §4 and §16.
 

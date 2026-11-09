@@ -1,11 +1,8 @@
 package io.github.lawrencekcleung.pft.cli.commands;
 
 import io.github.lawrencekcleung.pft.cli.AppContext;
-import io.github.lawrencekcleung.pft.cli.CommandDefinition;
 import io.github.lawrencekcleung.pft.cli.FindingPrinter;
-import io.github.lawrencekcleung.pft.cli.OptionSpec;
-import io.github.lawrencekcleung.pft.cli.OptionType;
-import io.github.lawrencekcleung.pft.cli.ParsedArgs;
+import io.github.lawrencekcleung.pft.cli.RootCommand;
 import io.github.lawrencekcleung.pft.error.UsageException;
 import io.github.lawrencekcleung.pft.model.Transaction;
 import io.github.lawrencekcleung.pft.rules.AnalysisContext;
@@ -13,13 +10,16 @@ import io.github.lawrencekcleung.pft.rules.AnalysisRule;
 import io.github.lawrencekcleung.pft.rules.Finding;
 import io.github.lawrencekcleung.pft.rules.Rule;
 import io.github.lawrencekcleung.pft.rules.RuleRegistry;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParentCommand;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 /**
@@ -29,59 +29,55 @@ import java.util.stream.Collectors;
  * output is stable regardless of rule iteration order. The command is read-only; findings are
  * recomputed on every run and never persisted.</p>
  */
-public final class AnalyzeCommand {
+@Command(name = "analyze", description = "run rule-based analysis",
+        mixinStandardHelpOptions = true)
+public final class AnalyzeCommand implements Callable<Integer> {
 
-    private AnalyzeCommand() {
-    }
+    @ParentCommand
+    private RootCommand root;
 
-    /**
-     * Declares the command.
-     *
-     * @return the definition registered in {@link io.github.lawrencekcleung.pft.cli.CommandRegistry}
-     */
-    public static CommandDefinition definition() {
-        return new CommandDefinition("analyze", "run rule-based analysis",
-                List.of(
-                        new OptionSpec("month", "only this month (yyyy-MM)",
-                                OptionType.YEAR_MONTH, false, null),
-                        new OptionSpec("rule", "run only this rule",
-                                OptionType.STRING, false, null)),
-                AnalyzeCommand::run);
-    }
+    @Option(names = "--month", paramLabel = "<yyyy-MM>", description = "only this month")
+    private YearMonth month;
 
-    private static void run(ParsedArgs args, AppContext ctx) {
-        YearMonth month = args.optionalMonth("month").orElse(null);
+    @Option(names = "--rule", description = "run only this rule")
+    private String ruleId;
+
+    @Override
+    public Integer call() {
         RuleRegistry registry = RuleRegistry.defaults();
-        List<AnalysisRule> rules = selectRules(registry, args.optionalString("rule"));
+        List<AnalysisRule> rules = selectRules(registry, ruleId);
 
-        List<Transaction> transactions = ctx.repository().findAll().stream()
-                .filter(tx -> month == null || YearMonth.from(tx.date()).equals(month))
-                .toList();
-        AnalysisContext context = new AnalysisContext(transactions, month);
-        Map<Integer, LocalDate> dates = transactions.stream()
-                .collect(Collectors.toMap(Transaction::id, Transaction::date));
+        try (AppContext ctx = root.context()) {
+            List<Transaction> transactions = ctx.repository().findAll().stream()
+                    .filter(tx -> month == null || YearMonth.from(tx.date()).equals(month))
+                    .toList();
+            AnalysisContext context = new AnalysisContext(transactions, month);
+            Map<Integer, LocalDate> dates = transactions.stream()
+                    .collect(Collectors.toMap(Transaction::id, Transaction::date));
 
-        List<Finding> findings = rules.stream()
-                .flatMap(rule -> rule.evaluate(context).stream())
-                .sorted((a, b) -> compare(a, b, dates))
-                .toList();
+            List<Finding> findings = rules.stream()
+                    .flatMap(rule -> rule.evaluate(context).stream())
+                    .sorted((a, b) -> compare(a, b, dates))
+                    .toList();
 
-        if (findings.isEmpty()) {
-            ctx.out().println("No findings.");
-            return;
+            if (findings.isEmpty()) {
+                ctx.out().println("No findings.");
+                return 0;
+            }
+            FindingPrinter printer = new FindingPrinter();
+            for (Finding finding : findings) {
+                ctx.out().println(printer.format(finding));
+            }
         }
-        FindingPrinter printer = new FindingPrinter();
-        for (Finding finding : findings) {
-            ctx.out().println(printer.format(finding));
-        }
+        return 0;
     }
 
-    private static List<AnalysisRule> selectRules(RuleRegistry registry, Optional<String> id) {
-        if (id.isEmpty()) {
+    private static List<AnalysisRule> selectRules(RuleRegistry registry, String id) {
+        if (id == null) {
             return registry.analysisRules();
         }
-        AnalysisRule rule = registry.analysisRule(id.get()).orElseThrow(
-                () -> new UsageException("unknown rule '" + id.get() + "'; available: "
+        AnalysisRule rule = registry.analysisRule(id).orElseThrow(
+                () -> new UsageException("unknown rule '" + id + "'; available: "
                         + availableRules(registry)));
         return List.of(rule);
     }

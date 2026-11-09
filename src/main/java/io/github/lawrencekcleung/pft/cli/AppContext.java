@@ -2,7 +2,7 @@ package io.github.lawrencekcleung.pft.cli;
 
 import io.github.lawrencekcleung.pft.store.TransactionRepository;
 
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.Objects;
@@ -13,11 +13,11 @@ import java.util.Objects;
  * <p>The repository hides the storage format, {@code out}/{@code err} keep commands printable in
  * tests, and the clock keeps date-dependent behaviour deterministic.</p>
  */
-public final class AppContext {
+public final class AppContext implements AutoCloseable {
 
     private final TransactionRepository repository;
-    private final PrintStream out;
-    private final PrintStream err;
+    private final PrintWriter out;
+    private final PrintWriter err;
     private final Clock clock;
     private final Path dataPath;
 
@@ -30,7 +30,7 @@ public final class AppContext {
      * @param clock      the clock used for defaults such as "this month"
      * @param dataPath   the resolved data file, for diagnostics
      */
-    public AppContext(TransactionRepository repository, PrintStream out, PrintStream err,
+    public AppContext(TransactionRepository repository, PrintWriter out, PrintWriter err,
                       Clock clock, Path dataPath) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
         this.out = Objects.requireNonNull(out, "out is required");
@@ -45,12 +45,12 @@ public final class AppContext {
     }
 
     /** Returns standard output. */
-    public PrintStream out() {
+    public PrintWriter out() {
         return out;
     }
 
     /** Returns standard error. */
-    public PrintStream err() {
+    public PrintWriter err() {
         return err;
     }
 
@@ -62,5 +62,11 @@ public final class AppContext {
     /** Returns the resolved data file path. */
     public Path dataPath() {
         return dataPath;
+    }
+
+    /** Closes the store. */
+    @Override
+    public void close() {
+        repository.close();
     }
 }

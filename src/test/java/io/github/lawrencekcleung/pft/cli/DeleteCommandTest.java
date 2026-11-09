@@ -7,7 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,15 +33,15 @@ class DeleteCommandTest {
 
     private final ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
     private final ByteArrayOutputStream errBytes = new ByteArrayOutputStream();
-    private final PrintStream out = new PrintStream(outBytes, true, StandardCharsets.UTF_8);
-    private final PrintStream err = new PrintStream(errBytes, true, StandardCharsets.UTF_8);
+    private final PrintWriter out = new PrintWriter(outBytes, true, StandardCharsets.UTF_8);
+    private final PrintWriter err = new PrintWriter(errBytes, true, StandardCharsets.UTF_8);
 
     private Path data() {
         return dir.resolve("data/transactions.csv");
     }
 
     private Cli cli() {
-        return new Cli(CommandRegistry.defaults(), out, err, CLOCK, Map.of(), data());
+        return Cli.create(CLOCK, Map.of(), data(), out, err);
     }
 
     private String stdout() {
@@ -83,7 +83,8 @@ class DeleteCommandTest {
     void missingIdIsAUsageErrorAndWritesNothing() {
         assertEquals(1, cli().run("delete"));
 
-        assertTrue(stderr().contains("missing required option --id"));
+        assertTrue(stderr().contains("Missing required option"));
+        assertTrue(stderr().contains("--id"));
         assertTrue(stdout().isEmpty());
     }
 

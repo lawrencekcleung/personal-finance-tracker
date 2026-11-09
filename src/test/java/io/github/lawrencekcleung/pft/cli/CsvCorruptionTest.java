@@ -6,7 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,8 +28,8 @@ class CsvCorruptionTest {
 
     private final ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
     private final ByteArrayOutputStream errBytes = new ByteArrayOutputStream();
-    private final PrintStream out = new PrintStream(outBytes, true, StandardCharsets.UTF_8);
-    private final PrintStream err = new PrintStream(errBytes, true, StandardCharsets.UTF_8);
+    private final PrintWriter out = new PrintWriter(outBytes, true, StandardCharsets.UTF_8);
+    private final PrintWriter err = new PrintWriter(errBytes, true, StandardCharsets.UTF_8);
 
     private Path data() {
         return dir.resolve("data/transactions.csv");
@@ -40,7 +40,7 @@ class CsvCorruptionTest {
         Files.writeString(data(), content, StandardCharsets.UTF_8);
         String before = Files.readString(data(), StandardCharsets.UTF_8);
 
-        int exit = new Cli(CommandRegistry.defaults(), out, err, CLOCK, Map.of(), data())
+        int exit = Cli.create(CLOCK, Map.of(), data(), out, err)
                 .run("list");
 
         assertEquals(2, exit);
