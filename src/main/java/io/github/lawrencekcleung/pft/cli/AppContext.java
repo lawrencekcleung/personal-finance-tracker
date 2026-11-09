@@ -1,5 +1,6 @@
 package io.github.lawrencekcleung.pft.cli;
 
+import io.github.lawrencekcleung.pft.model.Money;
 import io.github.lawrencekcleung.pft.store.TransactionRepository;
 
 import java.io.PrintWriter;
@@ -20,23 +21,26 @@ public final class AppContext implements AutoCloseable {
     private final PrintWriter err;
     private final Clock clock;
     private final Path dataPath;
+    private final Money monthlyBudget;
 
     /**
      * Creates the context.
      *
-     * @param repository the open store
-     * @param out        standard output
-     * @param err        standard error
-     * @param clock      the clock used for defaults such as "this month"
-     * @param dataPath   the resolved data file, for diagnostics
+     * @param repository    the open store
+     * @param out           standard output
+     * @param err           standard error
+     * @param clock         the clock used for defaults such as "this month"
+     * @param dataPath      the resolved data file, for diagnostics
+     * @param monthlyBudget the monthly expense budget used by warnings
      */
     public AppContext(TransactionRepository repository, PrintWriter out, PrintWriter err,
-                      Clock clock, Path dataPath) {
+                      Clock clock, Path dataPath, Money monthlyBudget) {
         this.repository = Objects.requireNonNull(repository, "repository is required");
         this.out = Objects.requireNonNull(out, "out is required");
         this.err = Objects.requireNonNull(err, "err is required");
         this.clock = Objects.requireNonNull(clock, "clock is required");
         this.dataPath = Objects.requireNonNull(dataPath, "dataPath is required");
+        this.monthlyBudget = Objects.requireNonNull(monthlyBudget, "monthlyBudget is required");
     }
 
     /** Returns the open store. */
@@ -62,6 +66,11 @@ public final class AppContext implements AutoCloseable {
     /** Returns the resolved data file path. */
     public Path dataPath() {
         return dataPath;
+    }
+
+    /** Returns the configured monthly expense budget. */
+    public Money monthlyBudget() {
+        return monthlyBudget;
     }
 
     /** Closes the store. */

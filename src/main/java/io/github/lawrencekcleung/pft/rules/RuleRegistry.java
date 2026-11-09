@@ -1,5 +1,8 @@
 package io.github.lawrencekcleung.pft.rules;
 
+import io.github.lawrencekcleung.pft.config.Budget;
+import io.github.lawrencekcleung.pft.model.Money;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -26,16 +29,23 @@ public final class RuleRegistry {
     }
 
     /**
-     * Builds the production registry.
-     *
-     * <p>Rules are registered here as their phases land; registration stays explicit and ordered
-     * rather than discoverable by reflection.</p>
+     * Builds the production registry with the built-in budget.
      *
      * @return the shipped rules
      */
     public static RuleRegistry defaults() {
+        return defaults(Budget.DEFAULT_MONTHLY_LIMIT);
+    }
+
+    /**
+     * Builds the production registry with an explicit monthly budget.
+     *
+     * @param monthlyBudget the limit used by the budget analysis rule
+     * @return the shipped rules
+     */
+    public static RuleRegistry defaults(Money monthlyBudget) {
         return of(List.of(new KeywordCategorizationRule()),
-                List.of(new DuplicateChargeRule(3)));
+                List.of(new BudgetRule(monthlyBudget)));
     }
 
     /**

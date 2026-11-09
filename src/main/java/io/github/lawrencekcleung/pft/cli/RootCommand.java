@@ -7,6 +7,8 @@ import io.github.lawrencekcleung.pft.cli.commands.DeleteCommand;
 import io.github.lawrencekcleung.pft.cli.commands.ImportCommand;
 import io.github.lawrencekcleung.pft.cli.commands.ListCommand;
 import io.github.lawrencekcleung.pft.cli.commands.SummaryCommand;
+import io.github.lawrencekcleung.pft.config.Budget;
+import io.github.lawrencekcleung.pft.config.ConfigLoader;
 import io.github.lawrencekcleung.pft.error.UsageException;
 import io.github.lawrencekcleung.pft.store.RepositoryFactory;
 import picocli.CommandLine;
@@ -59,6 +61,10 @@ public final class RootCommand implements java.util.concurrent.Callable<Integer>
             description = "data file (default: ./data/transactions.csv, or $PFT_DATA)")
     private Path dataOption;
 
+    @Option(names = "--config", scope = ScopeType.INHERIT, paramLabel = "<path>",
+            description = "config file (default: ./pft.properties)")
+    private Path configOption;
+
     @Spec
     private CommandSpec spec;
 
@@ -92,8 +98,16 @@ public final class RootCommand implements java.util.concurrent.Callable<Integer>
     public AppContext context() {
         CommandLine commandLine = spec.commandLine();
         Path path = resolveDataPath();
+        Budget budget = resolveBudget();
         return new AppContext(RepositoryFactory.open(path), commandLine.getOut(),
-                commandLine.getErr(), clock, path);
+                commandLine.getErr(), clock, path, budget.monthlyLimit());
+    }
+
+    private Budget resolveBudget() {
+        if (configOption != null) {
+            return ConfigLoader.load(configOption);
+        }
+        return ConfigLoader.loadOrDefault(Path.of(ConfigLoader.FILE_NAME));
     }
 
     private Path resolveDataPath() {

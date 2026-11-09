@@ -3,8 +3,7 @@
 `pft` is a small command-line tracker for one person's income and
 expenses. It keeps everything in a plain CSV file, imports bank-style exports with
 per-row validation, categorizes transactions on demand from an ordered keyword table,
-prints monthly spend summaries, and flags likely duplicate charges with a rule-based
-analyzer.
+prints monthly spend summaries, and ships a small framework for rule-based analysis.
 
 The full design is in [`PRD.md`](PRD.md); [`tasks.md`](tasks.md) records the build order
 and the verification for each step.
@@ -85,7 +84,8 @@ src/main/java/io/github/lawrencekcleung/pft/
   model/    Money, Transaction, TransactionType, Category
   store/    TransactionRepository, CSV codec/repository, factory
   service/  add/list/import/categorize/summary use cases
-  rules/    rule model, registry, keyword and duplicate-charge rules
+  rules/    rule model, registry, keyword and budget rules
+  config/   pft.properties loader and budget defaults
   cli/      picocli root/commands, converters, handlers, formatters
   error/    UsageException, DataException, StorageException
 ```
@@ -103,6 +103,9 @@ Added #2 (category: UNCATEGORIZED)
 
 $ pft add --date 2026-11-02 --type expense --amount 1200.00 --description "November rent"
 Added #3 (category: UNCATEGORIZED)
+
+$ pft analyze
+[budget-exceeded] 2026-11 expenses total 1242.50, above the 500.00 monthly budget
 ```
 
 `nov.csv` contains four good rows and one bad amount:
@@ -168,9 +171,6 @@ Added #8 (category: dining)
 $ pft add --date 2026-11-07 --type expense --amount 9.90 --description Coffee --category dining
 Added #9 (category: dining)
 
-$ pft analyze
-[duplicate-charge] #8, #9  9.90 "Coffee" on 2026-11-06 and 2026-11-07 (1 day apart)
-
 $ pft summary --month 2026-11
 Period: 2026-11   Income: 5000.00   Expenses: 184.60   Net: +4815.40
 
@@ -205,10 +205,11 @@ id,date,type,amount,category,description
 | `list` | `[--month yyyy-MM]`, `[--category]`, `[--uncategorized]` | Date-then-id order; prints `No transactions.` when empty |
 | `categorize` | `[--apply]`, `[--id N --category X]` | Dry run unless `--apply`; `--id` writes immediately |
 | `summary` | `[--month yyyy-MM]` | Totals, signed net, expense breakdown; all time by default |
-| `analyze` | `[--month yyyy-MM]`, `[--rule id]` | Read-only; prints `No findings.` when clean |
+| `analyze` | `[--month yyyy-MM]`, `[--rule id]` | Read-only; the `budget-exceeded` rule reports months over budget |
 | `delete` | `--id N` | Removes one row; does not renumber; ids are never reused |
 
-Global options: `--data <path>` (may appear before or after the command) and `--help`.
+Global options: `--data <path>` and `--config <path>` (both may appear before or after
+the command) and `--help`.
 `pft <command> --help` prints generated help.
 
 | Exit code | Meaning |
@@ -218,6 +219,33 @@ Global options: `--data <path>` (may appear before or after the command) and `--
 | `2` | Data error: invalid value, unknown id, corrupt store, partial import |
 
 Errors go to stderr; normal output goes to stdout. No command calls `System.exit`.
+
+## Monthly budget
+
+`analyze` includes a read-only **`budget-exceeded`** rule. It groups expenses by month and
+reports each month whose total is above the budget; income is ignored and nothing is
+written:
+
+```console
+$ pft analyze
+[budget-exceeded] 2026-11 expenses total 1242.50, above the 500.00 monthly budget
+```
+
+A finding has no transaction ids because it describes the month, not a transaction. Use
+`--rule budget-exceeded` to run only this rule, or `--month yyyy-MM` to limit the context.
+
+The built-in budget is `500.00`. Copy the example config and edit it:
+
+```console
+$ cp pft.properties.example pft.properties
+$ cat pft.properties
+monthly.budget=500.00
+```
+
+`pft.properties` is read from the current directory by default; pass `--config <path>` to
+use another file. It uses Java properties syntax (`#` comments, `key=value`), unknown keys
+are ignored, and an invalid value exits `2`. Changing the budget does not rewrite any
+transactions or affect `add`.
 
 ## Design notes
 
@@ -253,10 +281,12 @@ Both extension paths are documented by recipes below.
 description, in declared order, first match wins. Only `UNCATEGORIZED` rows are eligible;
 manual overrides are final, so re-running `--apply` is a true no-op.
 
-**Duplicate charges.** `duplicate-charge` pairs distinct expenses whose descriptions match
-after trim/lower-case/whitespace collapse, whose cents are equal, and whose dates are at
-most three days apart. A transaction may appear in more than one pair; pairs are ordered
-by earliest date then ids.
+**Analysis rules.** `AnalysisRule` implementations receive an `AnalysisContext` (the
+period's transactions plus `expenses()`) and return `Finding`s. `RuleRegistry` registers
+rules explicitly, `FindingPrinter` is the single renderer, and
+`AnalysisRuleContractTest` enforces identity, determinism and referential integrity. No
+built-in analysis rule is registered at the moment, so `analyze` reports `No findings.`
+until one is added.
 
 ## Extending
 
@@ -303,7 +333,7 @@ Porting map for SQLite:
 
 ## Testing
 
-`gradle test` runs 308 fast tests with no network or shared state:
+`gradle test` runs 312 fast tests with no network or shared state:
 
 - domain and money parsing, including the two-decimal and overflow rules;
 - codec round-trips for comma, quote, newline, Unicode, CRLF and BOM;
@@ -319,12 +349,11 @@ Porting map for SQLite:
 - Single process only; concurrent invocations can lose a write.
 - Full-file rewrite on every mutation; fine for personal scale, not for bulk data.
 - Import is line-oriented: quoted fields may contain commas, but not embedded newlines.
-- Import does not deduplicate; `duplicate-charge` will surface the repeats.
-- `duplicate-charge` reports pairs, so one transaction can appear in several findings.
+- Import does not deduplicate; importing the same file twice creates repeats.
 - Summary shares are rounded to 1dp and may not total exactly `100.0%`.
 - If `transactions.csv.seq` is deleted, the next id falls back to `max(id)+1`, so a
   hand-edited store can reuse the highest deleted id. Starting from a consistent sidecar
   (or an untouched store) preserves the guarantee.
 - Categorization applies to every uncategorized row, including income rows, if a keyword
   matches; the shipped keywords target expenses.
-- No amount editing (delete and re-add), no budgets, accounts, multi-currency or export.
+- No amount editing (delete and re-add), no accounts, multi-currency or export.

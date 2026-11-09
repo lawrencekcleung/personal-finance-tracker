@@ -232,7 +232,23 @@ _C7 is intentionally earlier than PRD §14's task 10: every service test needs a
   `-h`, `--version`, `--` and typo suggestions come from picocli.
 - PRD §2/§8/§12/§13/§14/§16/§17 and the README were updated; the dependency stance is now "a
   small, well-supported library over hand-rolled infrastructure" for commodity features.
-- Test count: 308. Progress remains 50/50; functional behaviour is unchanged.
+- Test count: 308 at that point.
+
+### Analysis rule removal
+
+- `duplicate-charge`, its contract test and its rule-specific tests were removed; the analysis
+  framework, `FindingPrinter` and the `analyze` command remain. `RuleRegistry.defaults()` has no
+  analysis rule until a single-transaction replacement is chosen.
+- Test count after removal: 286. Progress remains 50/50 for the original checklist.
+
+### Monthly budget
+
+- The budget is a read-only `AnalysisRule` (`budget-exceeded`): `analyze` reports each month
+  whose expenses exceed the configured limit. `add` performs no budget check and never warns.
+- The default is 500.00; `pft.properties` (or `--config <path>`) overrides it via
+  `monthly.budget`. `pft.properties.example` documents the file and `/pft.properties` is
+  gitignored.
+- Findings are monthly aggregates with no transaction ids; income is ignored.
 
 ---
 

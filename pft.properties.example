@@ -1,0 +1,3 @@
+# Copy this file to pft.properties to override the built-in settings.
+# Monthly expense budget used by the `analyze` budget-exceeded rule (default: 500.00).
+monthly.budget=500.00

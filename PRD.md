@@ -22,7 +22,7 @@ Goals, in priority order:
 3. **Testable and extensible** without ceremony: new command, new option, new rule, new storage adapter each have a documented, one-file-shaped recipe.
 4. **Honest scope.** Assumptions stated; nothing half-built pretending to be finished.
 
-Non-goals: multi-user, authentication, multi-currency, budgets, cloud sync, UI, recurring transaction generation, performance beyond personal-scale data.
+Non-goals: multi-user, authentication, multi-currency, cloud sync, UI, recurring transaction generation, performance beyond personal-scale data.
 
 ### Requirement traceability
 
@@ -32,7 +32,7 @@ Non-goals: multi-user, authentication, multi-currency, budgets, cloud sync, UI, 
 | Data entry + import for one or more transactions | `add`, `import` (§5.1, §5.2) |
 | On-demand categorization | `categorize` dry-run / `--apply` / `--id` (§9.2) |
 | Summary: total spend, spend by category | `summary` (§5.6, §6.4) |
-| One rule-based analysis, not the $50 example | `duplicate-charge` analysis rule (§9.3) |
+| One rule-based analysis, not the $50 example | `AnalysisRule` framework in place (§9.3); built-in rule pending selection |
 | Usable as a tracker, assumptions stated | §4 assumptions, §7 persistence, §13 README |
 | Readable, maintainable, testable, extensible | §8 picocli CLI, §9 rule framework, §7.4 seam, §12 testing |
 | Source/text only, no binaries | §10 build (no `gradlew`, no committed data) |
@@ -52,7 +52,7 @@ Non-goals: multi-user, authentication, multi-currency, budgets, cloud sync, UI, 
 | Direction | `TransactionType` (income/expense) carries sign; amounts stored non-negative | Keeps money free of sign rules; one `partitioningBy` for totals |
 | Categories | Free-form `String`, default `UNCATEGORIZED` | Extending needs no code change; not an enum |
 | Categorization | Keyword rules, first match wins, only touches `UNCATEGORIZED` | Deterministic, idempotent, manual assignment always wins |
-| Analysis rule | `duplicate-charge` | Not the provided example; genuinely useful; easy to test at boundaries |
+| Analysis rule | Framework now; built-in rule pending | `duplicate-charge` was removed by request; the replacement will analyse single transactions and avoid the provided `$50` example |
 | Rule registration | Explicit `RuleRegistry` lists | Discoverable, ordered, testable. `ServiceLoader` rejected as indirection without benefit |
 | Rejected | `BigDecimal` amounts, `double` amounts, H2/SQLite now, reflection-based command dispatch, config files for rules | Simplest thing that meets the brief |
 
@@ -69,7 +69,7 @@ CLI (picocli commands + RootCommand)
                                                 │
                         RuleRegistry ───────────┤
                           ├── CategorizationRule (keyword → category)
-                          └── AnalysisRule       (duplicate-charge)
+                          └── AnalysisRule       (registered rules)
                                                 │
                                      TransactionRepository (interface)
                                        └── CsvTransactionRepository
@@ -87,13 +87,14 @@ Dependency rule: **only `RepositoryFactory` knows about files.** Services take `
 2. **No currency symbol.** Amounts are printed as bare 2dp text (`1234.50`); currency is whatever the user means. Amounts with more than 2 decimal places are rejected, never rounded silently.
 3. **Dates are ISO `yyyy-MM-dd`**, no timezone. "Month" means the calendar month.
 4. **Data file is local**: `--data <path>` (highest precedence) → `PFT_DATA` env var → `./data/transactions.csv`.
-5. **Import does not deduplicate.** Importing the same file twice creates duplicates — which `analyze` will then flag. This is intentional and documented.
+5. **Import does not deduplicate.** Importing the same file twice creates duplicates. This is intentional and documented.
 6. **IDs are opaque, monotonic, and never reused.** They are not row numbers.
 7. **Analysis is advisory and read-only.** Findings are recomputed each run; nothing is persisted.
 8. **Categorization rules live in code**, documented in the README. No config file (see §15 for the extension point).
 9. **Personal scale.** Full-file rewrite per mutation is acceptable; hundreds to low thousands of transactions.
 10. **Amount magnitude.** Realistic amounts are under 5,000,000.00 = 5×10⁸ cents, ~10 orders of magnitude inside `long`. Overflow still throws rather than wrapping.
-11. **Out of scope:** auth, accounts, budgets, editing an amount (delete + re-add), multi-currency, exports beyond CSV, i18n.
+11. **Monthly budget (analysis).** `analyze` reports months whose expenses exceed a per-month budget, 500.00 by default. `pft.properties` (or `--config`) can override it. The rule is read-only and never blocks or warns during writes.
+12. **Out of scope:** auth, accounts, editing an amount (delete + re-add), multi-currency, exports beyond CSV, i18n.
 
 ---
 
@@ -102,15 +103,17 @@ Dependency rule: **only `RepositoryFactory` knows about files.** Services take `
 ### 5.0 Global options and conventions
 
 ```
-pft [--data <path>] <command> [options]      # --data may also follow the command
+pft [--data <path>] [--config <path>] <command> [options]   # globals may follow the command
 pft --help
 pft <command> --help
 ```
 
 - Options accept `--name value` and `--name=value`.
+- `--data <path>` selects the store (`--data` → `PFT_DATA` → `./data/transactions.csv`).
+- `--config <path>` selects the settings file (`--config` → `./pft.properties` → built-in defaults).
 - Unknown option → usage error listing the valid options for that command.
-- Exit codes: `0` success; `1` usage error (bad flags, missing required option); `2` data error (invalid value, unknown id, corrupt store, partial import).
-- All output goes to stdout; errors go to stderr.
+- Exit codes: `0` success; `1` usage error (bad flags, missing required option); `2` data error (invalid value, unknown id, corrupt store, partial import, invalid config).
+- All normal output goes to stdout; errors and warnings go to stderr.
 - Help text is generated from the option specifications, so it cannot drift.
 
 ### 5.1 `add` — single transaction
@@ -239,14 +242,16 @@ subscriptions                12.00      6.5%
 ### 5.7 `analyze`
 
 ```
-pft analyze [--month 2026-11] [--rule duplicate-charge]
+pft analyze [--month 2026-11] [--rule budget-exceeded]
 ```
 
 ```
-[duplicate-charge] #8, #9  9.90 "Coffee" on 2026-11-06 and 2026-11-07 (1 day apart)
+[budget-exceeded] 2026-11 expenses total 1242.50, above the 500.00 monthly budget
 ```
 
-- No `--rule` runs every registered analysis rule.
+- No `--rule` runs every registered analysis rule (`budget-exceeded` today).
+- The budget rule groups expenses by month, ignores income, and emits one finding per
+  over-budget month; findings have no transaction ids because they describe the month.
 - Findings sorted deterministically: rule id, then earliest transaction date, then transaction ids.
 - No findings prints `No findings.` and exits `0`.
 - Read-only; never writes.
@@ -397,6 +402,7 @@ Every mutation: read whole file → mutate in memory → write `transactions.csv
 | Missing file / directory | Treated as an empty store; created on first successful write |
 | Import row invalid | Skip row, report source line, commit valid rows, exit `2` |
 | Unknown id in `delete`/`categorize --id` | Exit `2`, no write |
+| Invalid or explicitly missing config file | Exit `2`, no write; the message names the file and key |
 | Temp file left by a kill | Ignored; overwritten by the next write |
 
 ### 7.4 The seam — `TransactionRepository`
@@ -493,6 +499,8 @@ Subtlety to document: a persisted high-water mark and SQLite `AUTOINCREMENT` bot
 $ pft add --date 2026-11-01 --type income --amount 5000 --description "Salary Oct" --category income
 $ pft add --date 2026-11-01 --type expense --amount 42.50 --description "Countdown, Auckland"
 $ pft add --date 2026-11-02 --type expense --amount 1200.00 --description "November rent"
+$ pft analyze                        # 2026-11 is over the budget
+[budget-exceeded] 2026-11 expenses total 1242.50, above the 500.00 monthly budget
 $ pft import --file nov.csv          # 4 valid, 1 invalid -> exit 2, ids #4..#7, no gap
 $ pft categorize                     # dry run, file byte-identical
 $ pft categorize --apply             # 6 rows categorized
@@ -500,7 +508,7 @@ $ pft categorize --id 7 --category client-entertainment
 $ pft delete --id 3                  # row gone, ids not renumbered
 $ pft add ... "Coffee" 9.90          # -> #8 (high-water mark, not count+1)
 $ pft add ... "Coffee" 9.90          # -> #9
-$ pft analyze                        # flags #8/#9 as duplicate-charge
+$ pft analyze                        # 184.60 is under budget -> "No findings."
 $ pft summary --month 2026-11
 ```
 
@@ -544,8 +552,12 @@ final class RootCommand implements Callable<Integer> {
     @Option(names = "--data", scope = ScopeType.INHERIT, paramLabel = "<path>")
     Path dataPath;
 
+    @Option(names = "--config", scope = ScopeType.INHERIT, paramLabel = "<path>")
+    Path configPath;
+
     @Spec CommandSpec spec;
-    // context(): --data -> PFT_DATA -> ./data/transactions.csv, then opens the repository
+    // context(): resolves --data/env/default and --config/default, loads the budget,
+    // then opens the repository
 
     @Override public Integer call() {           // no subcommand
         spec.commandLine().usage(spec.commandLine().getErr());
@@ -572,8 +584,11 @@ Behaviour:
   amounts. Conversion failures are reported as usage errors.
 - `-h`/`--help`, `--version`, `pft help <command>` and `--` come from picocli.
 - Unknown commands and options get a "Did you mean" suggestion when picocli can compute one.
-- `--data` is inherited, so it may appear before or after the subcommand. Resolution remains
-  `--data` → `PFT_DATA` → `./data/transactions.csv`.
+- `--data` and `--config` are inherited, so they may appear before or after the subcommand.
+  Data resolution remains `--data` → `PFT_DATA` → `./data/transactions.csv`; config resolution
+  is `--config` → `./pft.properties` → built-in defaults.
+- The config is Java properties: `monthly.budget=750.00` overrides the 500.00 default used by the `budget-exceeded` analysis rule.
+  Unknown keys are ignored; an invalid value exits `2` with the file and key in the message.
 - `Cli` configures the streams, parameter handler and execution handler once; commands return `0`
   and throw domain exceptions. `UsageException` maps to `1`, `DataException`/`StorageException`
   to `2`, and `Main` calls `System.exit` exactly once.
@@ -625,7 +640,7 @@ public record AnalysisContext(List<Transaction> transactions, YearMonth period) 
 public record Finding(String ruleId, List<Integer> transactionIds, String message) {}
 
 public final class FindingPrinter {
-    public String format(Finding finding);   // "[duplicate-charge] #8, #9  message"
+    public String format(Finding finding);   // "[rule-id] #8, #9  message"
 }
 ```
 
@@ -663,19 +678,21 @@ public final class RuleRegistry {
 
 Rules apply only to `UNCATEGORIZED` rows; manual assignments are never overwritten; re-running `--apply` is a no-op.
 
-### 9.3 Analysis rule (implemented): `duplicate-charge`
+### 9.3 Analysis rule (implemented): `budget-exceeded`
 
-Flags a pair of **expenses** where:
+Flags each calendar month whose total expenses exceed the configured budget.
 
-- normalized descriptions match (trim, lowercase, collapse internal whitespace),
-- `Money` is exactly equal (cents equality),
-- date difference is ≤ 3 days,
-- they are distinct transactions,
-- neither is income.
+- Income is ignored; only expenses count.
+- One finding per over-budget month, in chronological order; findings have no transaction ids
+  because they describe the month, not a transaction.
+- With `--month`, only that month is considered.
+- The budget comes from `pft.properties`/`--config` (default 500.00) and is passed into the
+  rule by `RuleRegistry.defaults(budget)`.
+- Read-only: the rule never blocks `add`, warns during writes, or persists anything.
 
-Output pairs sorted by earliest date then ids; each transaction may appear in more than one pair (documented, keeps the rule simple). Window size is a constructor parameter (`new DuplicateChargeRule(3)`), defaulted in `RuleRegistry`.
-
-Why this rule: it is the kind of thing a personal tracker actually surfaces, it is deterministic, it has interesting boundaries (day 3 vs day 4, differing amounts, income, same-day), and it cannot be mistaken for the brief's `$50` example.
+Why this rule: it is a real budgeting signal, deterministic, monthly rather than
+transaction-level, and cannot be mistaken for the brief's `$50` example (it compares a
+configurable monthly total, not a fixed per-transaction threshold).
 
 ### 9.4 Recipe — add an analysis rule
 
@@ -691,8 +708,9 @@ Why this rule: it is the kind of thing a personal tracker actually surfaces, it 
 ```
 build.gradle.kts        # java + application, toolchain 21, picocli, JUnit 5, fatJar
 settings.gradle.kts
-.gitignore              # build/, .gradle/, data/, *.db, /pft.jar
+.gitignore              # build/, .gradle/, data/, *.db, /pft.jar, /pft.properties
 pft                     # committed launcher for the generated jar
+pft.properties.example  # documented budget override; copy to pft.properties
 README.md
 PRD.md
 ```
@@ -741,9 +759,11 @@ Exceptions:
 | `Transaction` | blank description, negative amount, category defaulting |
 | CSV codec | comma/quote/newline/Unicode round-trip; header detection; corrupt line reporting with line number; temp file cleanup |
 | CLI wiring | exit codes 0/1/2, `--data` before/after the command, `PFT_DATA` precedence, help/version, typo suggestions |
+| Budget | default, config override, crossing vs already-over, income excluded, per-month totals |
 | Keyword rules | first-match wins, case-insensitivity, already-categorized untouched |
 | Summary | totals, net sign, grouping order, empty month, zero expenses (no divide-by-zero) |
-| `DuplicateChargeRule` | day 3 vs day 4 boundary, same amount different description, income excluded, same-day pair, multiple pairs |
+| Analysis rule contract | identity, deterministic output, referential integrity, expense-only via `AnalysisRuleContractTest` |
+| Budget rule | default/override, exactly-at budget, income excluded, multiple months, period filter |
 
 ### 12.2 Repository contract suite (the seam guarantee)
 
@@ -821,7 +841,7 @@ Every task ends with a green `gradle test` and something demonstrable. Task boun
 | 6 | Rule framework — interfaces, `Finding`, `AnalysisContext`, `RuleRegistry`, contract base + uniqueness test | Framework green with one stub rule | 30m |
 | 7 | Categorization — `KeywordCategorizationRule`, dry-run vs `--apply`, manual override | Re-running `--apply` is a no-op and writes nothing | 40m |
 | 8 | `summary` — totals, net, category table, `--month`, integer percentages | Matches hand-computed fixture; no divide-by-zero on empty month | 40m |
-| 9 | `DuplicateChargeRule` + `analyze --rule` | Boundary tests at 3 vs 4 days; income excluded; deterministic order | 30m |
+| 9 | `BudgetRule` + `analyze --rule` | Config override, exactly-at budget, income excluded, month grouping, deterministic order | 30m |
 | 10 | Hardening — `delete`, `--uncategorized`, CLI integration tests, `InMemoryTransactionRepository`, factory test, corrupt-store behaviour | ~30–35 tests green | 45m |
 | 11 | README — run steps, sample transcript, assumptions, §8/§9/§7 recipes, porting map | Reviewer runs it in two commands | 35m |
 
@@ -847,7 +867,7 @@ Critical path: `0 → 1 → 2 → 3`. After task 3, tasks `4 → 5 / 8` and `6 �
 | New categorization rule | ~15m | One entry in the keyword ordered map |
 | Rule parameters without rebuild | ~1h | `rules.properties` read in `RuleRegistry.defaults()` — deliberately deferred |
 | Editing an amount | ~30m | `update` already exists on the repository; add an `edit` command |
-| Budget alerts | ~1h | New `AnalysisRule` comparing month-to-date spend to a configured budget |
+| Write-time budget warning | ~30m | Reuse `BudgetRule` totals in `AddCommand`; deliberately not implemented because analysis is read-only |
 | Export | ~20m | `export --file out.csv` reusing the CSV codec |
 
 Rejected for now, stated in the README: `ServiceLoader` rule discovery (indirection without benefit at this size), reflection-based command dispatch (breaks IDE navigation), config files for keyword rules (a code review is a better place to change two keywords).
@@ -861,7 +881,7 @@ Rejected for now, stated in the README: `ServiceLoader` rule discovery (indirect
 | Scope creep past "a few hours" | Missed deadline, over-engineered submission | Fixed task table, commit per task, §14 trim order documented |
 | "No binaries" vs. Gradle wrapper | Reviewer can't build | Ship no wrapper; README states Gradle 8.5+ and shows `gradle wrapper` |
 | Reviewer can't see the data model intuitively | Harder interview | CSV is diffable; §7.6 transcript shows the file evolving |
-| Rule seen as derivative of the brief's example | Loses the credit for the optional part | `duplicate-charge` is unrelated to a `$50` threshold and has real edge cases |
+| Budget findings are monthly aggregates | No transaction ids in the finding | The message names the month and totals; `list --month` and `summary --month` drill down |
 | Third-party CLI dependency | Adds a jar; one more thing a reviewer must trust | Picocli is the library clig.dev recommends for Java, is used widely, and replaces ~800 lines of custom parser/help/dispatch; the alternative is documented in git history |
 | Full-file rewrite at scale | Slower with tens of thousands of rows | Explicitly out of scope (§4), with SQLite as the documented escape hatch |
 | Hidden nondeterminism in aggregation | Flaky tests, wrong output | TreeMap/ordered collectors, ascending sorts, no parallel streams |

@@ -96,13 +96,12 @@ class CliIntegrationTest {
     }
 
     @Test
-    void analyzeFindsDuplicateCharges() {
+    void analyzeReportsNoFindingsWithoutRegisteredRules() {
         add("2026-11-06", "expense", "9.90", "Coffee", "dining");
         add("2026-11-07", "expense", "9.90", "Coffee", "dining");
 
         assertEquals(0, run("analyze"));
-        assertEquals("[duplicate-charge] #1, #2  9.90 \"Coffee\" on 2026-11-06 and "
-                + "2026-11-07 (1 day apart)\n", stdout());
+        assertEquals("No findings.\n", stdout());
     }
 
     @Test

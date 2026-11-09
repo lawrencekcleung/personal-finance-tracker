@@ -44,10 +44,10 @@ public final class AnalyzeCommand implements Callable<Integer> {
 
     @Override
     public Integer call() {
-        RuleRegistry registry = RuleRegistry.defaults();
-        List<AnalysisRule> rules = selectRules(registry, ruleId);
-
         try (AppContext ctx = root.context()) {
+            RuleRegistry registry = RuleRegistry.defaults(ctx.monthlyBudget());
+            List<AnalysisRule> rules = selectRules(registry, ruleId);
+
             List<Transaction> transactions = ctx.repository().findAll().stream()
                     .filter(tx -> month == null || YearMonth.from(tx.date()).equals(month))
                     .toList();

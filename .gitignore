@@ -7,6 +7,9 @@ bin/
 # Self-contained jar built at the repository root
 /pft.jar
 
+# Local settings (copy pft.properties.example)
+/pft.properties
+
 # Runtime data (never published; recreated on first run)
 data/
 *.db

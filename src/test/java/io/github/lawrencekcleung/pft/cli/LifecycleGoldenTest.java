@@ -81,6 +81,10 @@ class LifecycleGoldenTest {
                 "--amount", "1200.00", "--description", "November rent"));
         assertEquals("Added #3 (category: UNCATEGORIZED)\n", stdout());
 
+        assertEquals(0, run("analyze"));
+        assertEquals("[budget-exceeded] 2026-11 expenses total 1242.50, above the "
+                + "500.00 monthly budget\n", stdout());
+
         Files.writeString(importFile(), """
                 date,type,amount,description
                 2026-11-02,expense,15.80,Uber to airport
@@ -119,9 +123,9 @@ class LifecycleGoldenTest {
                 "--amount", "9.90", "--description", "Coffee", "--category", "dining"));
         assertEquals("Added #9 (category: dining)\n", stdout());
 
+        // The analysis framework is in place; no built-in rule is registered yet.
         assertEquals(0, run("analyze"));
-        assertEquals("[duplicate-charge] #8, #9  9.90 \"Coffee\" on 2026-11-06 and "
-                + "2026-11-07 (1 day apart)\n", stdout());
+        assertEquals("No findings.\n", stdout());
 
         assertEquals(0, run("summary", "--month", "2026-11"));
         assertEquals("""

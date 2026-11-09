@@ -1,5 +1,6 @@
 package io.github.lawrencekcleung.pft.rules;
 
+import io.github.lawrencekcleung.pft.model.Money;
 import io.github.lawrencekcleung.pft.model.Transaction;
 import org.junit.jupiter.api.Test;
 
@@ -119,6 +120,23 @@ class RuleRegistryTest {
                 () -> RuleRegistry.of(List.of(), List.of(noDescription)));
 
         assertEquals("rule quiet needs a description", e.getMessage());
+    }
+
+    @Test
+    void defaultsRegistersTheBudgetRule() {
+        AnalysisRule rule = RuleRegistry.defaults().analysisRule("budget-exceeded")
+                .orElseThrow();
+
+        assertEquals("budget-exceeded", rule.id());
+    }
+
+    @Test
+    void defaultsUsesTheSuppliedBudget() {
+        RuleRegistry registry = RuleRegistry.defaults(Money.ofCents(12_345));
+
+        BudgetRule rule = (BudgetRule) registry.analysisRule("budget-exceeded").orElseThrow();
+
+        assertEquals(Money.ofCents(12_345), rule.monthlyBudget());
     }
 
     @Test
